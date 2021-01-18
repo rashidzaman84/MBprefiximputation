@@ -1,0 +1,5 @@
+1. I need to check if the following code resets the replayer in OnlineConformanceChecker2 in case of IDR setting?
+
+replayer = IncrementalReplayer.Factory
+					.construct(initialMarking, finalMarking, store, modelSemantics, parameters, labelsInPN,
+							IncrementalReplayer.Strategy.REVERT_BASED);

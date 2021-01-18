@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="lib/resources"/>
+	<classpathentry kind="src" output="tests/bin-test" path="tests/src-test"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="con" path="org.apache.ivyde.eclipse.cpcontainer.IVYDE_CONTAINER/?project=PrefixImputation&amp;ivyXmlPath=ivy.xml&amp;confs=*&amp;ivySettingsPath=ivysettings.xml&amp;loadSettingsOnDemand=false&amp;ivyUserDir=&amp;propertyFiles="/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/PNetReplayer.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/unfolder-v4-andbur.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/OnlineConformance-latest.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/hipster4j-1.0.1-svz-1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/plg-2.0.6.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/slickerbox-1.0rc1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/LpSolve-latest.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/ProcessTree-latest.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/Properties-latest.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
