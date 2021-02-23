@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +23,7 @@ import org.processmining.models.graphbased.directed.transitionsystem.State;
 import org.processmining.models.graphbased.directed.transitionsystem.Transition;
 import org.processmining.models.semantics.petrinet.Marking;
 import org.processmining.plugins.petrinet.behavioralanalysis.CGGenerator;
+import org.processmining.prefiximputation.inventory.NullConfiguration;
 import org.processmining.processtree.Block;
 import org.processmining.processtree.Node;
 import org.processmining.processtree.ProcessTree;
@@ -42,7 +44,7 @@ public class LocalModelStructure {
 
 	private ArrayList<String> caseStarterActivities = new ArrayList<String>();
 	//private Map<Integer, ArrayList<String>> nonDeterministicRegions = new HashMap<Integer, ArrayList<String>>();
-	private ArrayList<String> nonDeterministicActivities = new ArrayList<String>();  //should be Map<String, ArrayList<String>> as there
+	public ArrayList<String> nonDeterministicActivities = new ArrayList<String>();  //should be Map<String, ArrayList<String>> as there
 																// can be multiple non-deterministic regions 
 	//private String[] deterministicTransitions = {"E"};      //We shall also take transitions after E into account
 														   //as E may get lost or G/H/F may arrive out-of-order	
@@ -60,13 +62,15 @@ public class LocalModelStructure {
 	public Marking finalMarking;
 	//public TransEvClassMapping mapping = null;
 	public int imputationRevisitWindowSize;
-	//public String ccAlgoChoice;
+	public String ccAlgoChoice;
 	public XEventClasses eventClasses;
 	public Map<org.processmining.models.graphbased.directed.petrinet.elements.Transition, String> modelElementsToLabelMap = new HashMap<>();
 	public Map<String, Collection<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> labelsToModelElementsMap = new HashMap<>();
 	public TObjectDoubleMap<org.processmining.models.graphbased.directed.petrinet.elements.Transition> modelMoveCosts = new TObjectDoubleHashMap<>();
 	public TObjectDoubleMap<String> labelMoveCosts = new TObjectDoubleHashMap<>();
-
+	public OnlineConformanceChecker2 spareReplayer;
+	public List<String> processModelAlphabet = new ArrayList<String>();
+	
 	
 	// cached values
 	private Double maxOfMinRelationsAfter = null;
@@ -96,9 +100,12 @@ public class LocalModelStructure {
 		this.finalMarking = getFinalMarking(net);
 		//this.eventClasses = getEventClasses(net);
 		this.imputationRevisitWindowSize = imputationRevisitWindowSize;
-		//this.ccAlgoChoice = ccAlgoChoice;
+		this.ccAlgoChoice = ccAlgoChoice;
 		//this.mapping = getEventTransitionMapping(net,this.eventClasses);
 		populateAppropriateStructure(context, net, initMarking, ccAlgoChoice);
+		if(NullConfiguration.allowedDuplicateLabelApproximation) {
+			this.spareReplayer = new OnlineConformanceChecker2(this, false, null);
+		}
 	}
 		
 	/**
@@ -145,6 +152,16 @@ public class LocalModelStructure {
 	/*public String[] getNonDeterministicRegions() {
 		return nonDeterministicTransitions;
 	}*/
+	
+	public ArrayList<String> getEquivalentModelLabels(String eventName){
+		ArrayList<String> potentialModelLabels = new ArrayList<String>();
+		if(labelsToModelElementsMap.containsKey(eventName)){
+			for(org.processmining.models.graphbased.directed.petrinet.elements.Transition transition: labelsToModelElementsMap.get(eventName)) {
+				potentialModelLabels.add(transition.getLabel());
+			}			
+		}
+		return potentialModelLabels;
+	}
 	
 	public ArrayList<String> getShortestPrefix(String orphanEvent) {		
 		return shortestPrefixes.get(orphanEvent);
@@ -206,8 +223,8 @@ public class LocalModelStructure {
 		this.labelsToModelElementsMap = getEventClassesOOM.getLabelsToModelElementsMap();
 		this.modelElementsToLabelMap = getEventClassesOOM.getModelElementsToLabelMap();
 		this.modelMoveCosts = getEventClassesOOM.getModelMoveCosts();
-		this.labelMoveCosts = getEventClassesOOM.getLabelMoveCosts();
-		
+		this.labelMoveCosts = getEventClassesOOM.getLabelMoveCosts();	
+		this.processModelAlphabet = getEventClassesOOM.getProcessModelAlphabet();
 	}
 	/*private static TransEvClassMapping getEventTransitionMapping(Petrinet net, XEventClasses eventClasses) {
 		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(net);
@@ -348,6 +365,16 @@ public class LocalModelStructure {
 					//minMaxRelationsBefore.put(relation, new Pair<Integer, Integer>(min, max));
 				}
 			}
+			for(ArrayList<String> entry: shortestPrefixes.values()) {
+				Iterator<String> iterator = entry.iterator();
+				 while (iterator.hasNext()) {
+					 String label = iterator.next();
+					 if (label.contains("tau")) {
+					        entry.remove(label);
+					      }					 
+				 }
+				
+			}
 			System.out.println(shortestPrefixes);
 		}
 		/*for (Map.Entry<DirectFollowingRelation, Pair<Integer, Integer>> entry : minMaxRelationsBefore.entrySet()) {
@@ -405,9 +432,21 @@ public class LocalModelStructure {
 					}*/
 					//minMaxRelationsBefore.put(relation, new Pair<Integer, Integer>(min, max));
 				}
-			}
-			System.out.println(shortestPrefixes);
+			}			
 		}
+		Iterator<ArrayList<String>> iteratorOuter = shortestPrefixes.values().iterator();
+		while (iteratorOuter.hasNext()) {
+			ArrayList<String> currentPrefix = iteratorOuter.next();
+			Iterator<String> iteratorInner = currentPrefix.iterator();
+			 while (iteratorInner.hasNext()) {
+				 String label = iteratorInner.next();
+				 if (label.contains("tau")) {
+					 iteratorInner.remove();
+				      }					 
+			 }
+			
+		}
+		System.out.println(shortestPrefixes);
 		/*for (Map.Entry<DirectFollowingRelation, Pair<Integer, Integer>> entry : minMaxRelationsBefore.entrySet()) {
 		     System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
 		}*/

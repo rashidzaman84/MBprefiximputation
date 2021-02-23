@@ -7,11 +7,21 @@ package org.processmining.prefiximputation.modelbased.models;
  */
 public class OnlineConformanceScore {
 
+	private Double traceCost = null;
+	
 	private Double conformance = null;
 	private Double completeness = null;
 	private Double confidence = null;
 	private boolean isLastObservedViolation = false;
 	
+	public Double getTraceCost() {
+		return traceCost;
+	}
+
+	public void setTraceCost(Double traceCost) {
+		this.traceCost = traceCost;
+	}
+
 	public Double getConformance() {
 		return conformance;
 	}

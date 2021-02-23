@@ -16,6 +16,7 @@ import org.processmining.onlineconformance.algorithms.IncrementalReplayer;
 import org.processmining.onlineconformance.models.ModelSemanticsPetrinet;
 import org.processmining.onlineconformance.models.PartialAlignment;
 import org.processmining.onlineconformance.parameters.IncrementalRevBasedReplayerParametersImpl;
+import org.processmining.prefiximputation.inventory.NullConfiguration;
 
 import gnu.trove.map.TObjectDoubleMap;
 import gnu.trove.map.hash.TObjectDoubleHashMap;
@@ -27,7 +28,7 @@ public class OnlineConformanceChecker2 {
 	private final Marking initialMarking;
 	private final Marking finalMarking;
 	private LocalModelStructure lms;
-	private Double conformanceValue;
+	private Double traceCost;
 	private XEventClasses classes;
 	//public XTrace trace;
 	/*private Map<Transition, String> modelElementsToLabelMap = new HashMap<>();
@@ -39,12 +40,13 @@ public class OnlineConformanceChecker2 {
 	private TObjectDoubleMap<Transition> modelMoveCosts = new TObjectDoubleHashMap<>();
 	private TObjectDoubleMap<String> labelMoveCosts = new TObjectDoubleHashMap<>();
 	private final IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition> parameters;
-	private IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer;
+	public IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer;
 	//private IncrementalReplayResult<String, String, Transition, Marking, PartialAlignment<String, Transition, Marking>> pluginResult;
+	
 	
 	/*public OnlineConformanceChecker2() {		
 	}*/
-	public OnlineConformanceChecker2(LocalModelStructure lms, Boolean statusND) {
+	public OnlineConformanceChecker2(LocalModelStructure lms, Boolean statusND, String eventObserved) {
 		this.lms = lms;
 		this.net= this.lms.net;
 		this.initialMarking = this.lms.initialMarking;
@@ -53,7 +55,7 @@ public class OnlineConformanceChecker2 {
 		//this.modelElementsToLabelMap = lms.modelElementsToLabelMap;
 		//this.labelsToModelElementsMap = lms.labelsToModelElementsMap;
 		parameters = new IncrementalRevBasedReplayerParametersImpl<>();
-		initialiseComponents(statusND);
+		initialiseComponents(statusND, eventObserved );
 	}
 	/*public OnlineConformanceChecker2(Petrinet net, Marking initialMarking, Marking finalMarking) {
 		this.net = net;
@@ -61,13 +63,25 @@ public class OnlineConformanceChecker2 {
 		this.finalMarking = finalMarking;		
 	}*/
 	
-	public void initialiseComponents(Boolean statusND) {
+	public void initialiseComponents(Boolean statusND, String eventObserved) {
 		if(statusND) {
-			;//use cutomised Model and Label move costs w.r.t. ND philosophy
-		}else {
-			parameters.setLabelMoveCosts(lms.labelMoveCosts);
+			TObjectDoubleMap<Transition> modelMoveCosts = new TObjectDoubleHashMap<>();
+			modelMoveCosts.putAll(lms.modelMoveCosts);
+			for(String entry: lms.nonDeterministicActivities) {
+				if(!entry.equals(eventObserved)) {
+					for(Transition t: modelMoveCosts.keySet()) {
+						if(t.getLabel().equals(entry)) {
+							modelMoveCosts.put(t, 0.0);
+						}
+					}
+				}
+				
+			}
+			parameters.setModelMoveCosts(modelMoveCosts); //use customised Model and Label move costs w.r.t. ND philosophy
+		}else {			
 			parameters.setModelMoveCosts(lms.modelMoveCosts);
 		}
+		parameters.setLabelMoveCosts(lms.labelMoveCosts);
 		//setupLabelMap(net);
 		//setupModelMoveCosts(net);
 		//parameters = new IncrementalRevBasedReplayerParametersImpl<>();
@@ -77,8 +91,8 @@ public class OnlineConformanceChecker2 {
 		//parameters.setModelMoveCosts(modelMoveCosts);
 		parameters.setModelElementsToLabelMap(lms.modelElementsToLabelMap);
 		parameters.setSearchAlgorithm(IncrementalReplayer.SearchAlgorithm.A_STAR);
-		parameters.setUseSolutionUpperBound(true);
-		parameters.setLookBackWindow(2);
+		parameters.setUseSolutionUpperBound(false);
+		parameters.setLookBackWindow(Integer.MAX_VALUE);
 		parameters.setExperiment(false);
 		applyGeneric();
 	}
@@ -136,7 +150,7 @@ public class OnlineConformanceChecker2 {
 		//}
 	}
 	@SuppressWarnings("unchecked")
-	public /*<A extends PartialAlignment<String, Transition, Marking>> IncrementalReplayResult<String, String, Transition, Marking, A>*/ Double processXLog(String caseId, String e
+	public /*<A extends PartialAlignment<String, Transition, Marking>> IncrementalReplayResult<String, String, Transition, Marking, A>*/ Double processXLog(String caseId, String event
 			/*Petrinet net, Marking iMarking,
 			IncrementalReplayer<Petrinet, String, Marking, Transition, String, A, ? extends IncrementalReplayerParametersImpl<Petrinet, String, Transition>> replayer, XTrace trace*/) {
 		//XEventClasses classes = lms.eventClasses;
@@ -154,9 +168,17 @@ public class OnlineConformanceChecker2 {
 		//String caseId = XConceptExtension.instance().extractName(trace);
 		//pluginResult.put(traceStr, new ArrayList<A>());
 		//PartialAlignment<String, Transition, Marking> partialAlignment = null;
-		PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, e.toString());
-		this.conformanceValue = partialAlignment.getCost();
-		return this.conformanceValue;
+		PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event.toString());
+		
+		if(NullConfiguration.displayFineStats) {
+			System.out.println(caseId + ", " + event + ", " + partialAlignment);
+		}
+		if(NullConfiguration.isExperiment) {			
+			this.traceCost = partialAlignment.get((partialAlignment.size()-1)).getCost();			
+		}else {
+			this.traceCost = partialAlignment.getCost();
+		}
+		return this.traceCost;
 		/*for (String e : traceStrLst) {
 			partialAlignment = replayer.processEvent(caseId, e.toString());
 			pluginResult.get(traceStr).add((A) partialAlignment);

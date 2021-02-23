@@ -12,6 +12,7 @@ public class PrefixImputation {
 	public Integer imputationSize;
 	//public ArrayList<String> traceAfterImputation;
 	public boolean imputationRevised=false;
+	public String revisedOrphan;
 	//public static XFactory xesFactory = new XFactoryBufferedImpl();
 	//public static XExtensionManager xesExtensionManager = XExtensionManager.instance();
 	public PrefixImputation(LocalModelStructure lms) {
@@ -39,7 +40,13 @@ public class PrefixImputation {
 		if(!imputedTrace.isEmpty()) { //incase of revisiting imputation we need to first remove the old trace
 			imputedTrace.clear();
 		}
-		imputedTrace.addAll(lms.getShortestPrefix(newEventName));
+		ArrayList<String> shortestPrefix = lms.getShortestPrefix(newEventName);
+		if(shortestPrefix != null) {
+			imputedTrace.addAll(shortestPrefix);
+		}else {
+			System.out.println("No shortest prefix found for the event: " + newEventName);
+		}
+		
 		//imputedTrace = lms.getShortestPrefix(newEventName);
 		imputationSize = imputedTrace.size();
 		//>>System.out.println("The imputed prefix for Orphan event: " + newEventName + " is: " + imputedTrace + " with length of: " + imputationSize);
@@ -126,6 +133,7 @@ public class PrefixImputation {
 	        }
 			imputePrefix(maxSizeEvent/*, traceHistory*/);  //SHALL we just impute on the basis of maxSizeEvent OR consider the whole pattern of it?
 			imputationRevised=true;
+			this.revisedOrphan = maxSizeEvent;
 		}		
 	}
 	

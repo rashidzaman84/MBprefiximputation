@@ -66,9 +66,9 @@ public class CasesRemoval {
 		    	}else {										//can provide an escape for all other events in the ND region
 		    		casesDeletionPriority.put(caseId, 2);
 		    	}
-		    }else if (lcs.last.getConformance()==1.0 && isTraceSameAsShortestPath(trace) && !lcs.isInNonDeterministicRegion) {  //may or may not be imputed
+		    }else if (lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(trace) && !lcs.isInNonDeterministicRegion) {  //may or may not be imputed
 		    	casesDeletionPriority.put(caseId, 3);
-		    }else if(lcs.last.getConformance()==1.0 && isTraceSameAsShortestPath(trace)){
+		    }else if(lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(trace)){
 		    	casesDeletionPriority.put(caseId, 4);
 		    }/*else if(another scenario) {
 		    	

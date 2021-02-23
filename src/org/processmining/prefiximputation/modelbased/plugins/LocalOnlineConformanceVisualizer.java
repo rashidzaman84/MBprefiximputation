@@ -114,8 +114,7 @@ public class LocalOnlineConformanceVisualizer extends JPanel {
 		this.port = configuration.getPort();
 		this.address = configuration.getAddress();
 		//this.tracker = new LocalConformanceTracker(configuration.getLocalModelStructure(), configuration.getNoMaxParallelInstances());
-		this.tracker = new LocalConformanceTracker(configuration.getLocalModelStructure(), configuration.getNoMaxParallelInstances(),
-				configuration.getCCAlgoChoice(), configuration.getImputationRevisitWindowSize() );                     //CC w.r.t. algo choice
+		this.tracker = new LocalConformanceTracker(configuration.getLocalModelStructure(), configuration.getNoMaxParallelInstances());                     //CC w.r.t. algo choice
 		this.dlm = new DefaultListModel<LocalConformanceListEntry>();
 		this.list = new JList<LocalConformanceListEntry>(dlm);
 		this.list.setCellRenderer(new LocalConformanceListEntryRenderer<>());

@@ -1,7 +1,13 @@
 package org.processmining.prefiximputation.modelbased.models;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
+
+import org.processmining.models.graphbased.directed.petrinet.elements.Transition;
+import org.processmining.models.semantics.petrinet.Marking;
+import org.processmining.onlineconformance.models.PartialAlignment;
+import org.processmining.prefiximputation.inventory.NullConfiguration;
 
 /**
  * This class keeps track of the conformance status of a whole stream, by dispatching the events based on their
@@ -17,48 +23,54 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 	//protected Map<String, XTrace> casesHistory; 
 	//protected Map<String, Integer> casesImputationHistory; 
 	protected LocalModelStructure lms;
-	protected int noOfCasesInMemory;
+	//protected int noOfCasesInMemory;
 	protected int maxCasesToStore;
-	protected String ccAlgoChoice;
+	public String caseToRemove;
+	public boolean isTideStarted = false;
+	public boolean removalFlag = false;
+	public int noOfCasesDeleted = 0;
+	//protected String ccAlgoChoice;
 	/*protected int statesToStore;
 	protected int costNoActivity;
 	protected int errorsToStore;	*/
 	//protected boolean imputationRevisitSelected;
-	protected int imputationRevisitWindowSize;
+	//protected int imputationRevisitWindowSize;
 	//private String activityName;
 	//public static XFactory xesFactory = new XFactoryBufferedImpl();
 	//public static XExtensionManager xesExtensionManager = XExtensionManager.instance();
+	public HashMap<String, ArrayList<PartialAlignment<String, Transition, Marking>>> partialAlignmentRecord; //=new HashMap<String , ArrayList<PartialAlignment<String, Transition, Marking>>>();
 
 	public LocalConformanceTracker(LocalModelStructure lms, int maxCasesToStore) {
 		//this.caseIdHistory = new HashMap<String, Integer>();
 		this.lms = lms;
 		this.maxCasesToStore = maxCasesToStore;
+		this.partialAlignmentRecord =new HashMap<String , ArrayList<PartialAlignment<String, Transition, Marking>>>();
 		//this.caseIdsWithImputationInfo = new HashMap<String, Integer>();
 		//this.casesHistory = new HashMap<String, XTrace>();
-		this.noOfCasesInMemory=0;
+		//this.noOfCasesInMemory=0;
 	}
 	
-	public LocalConformanceTracker(LocalModelStructure lms, int maxCasesToStore, String ccAlgoChoice) {
+	/*public LocalConformanceTracker(LocalModelStructure lms, int maxCasesToStore, String ccAlgoChoice) {
 		//this.caseIdHistory = new HashMap<String, Integer>();
 		this.lms = lms;
 		this.maxCasesToStore = maxCasesToStore;
 		//this.caseIdsWithImputationInfo = new HashMap<String, Integer>();
 		//this.casesHistory = new HashMap<String, XTrace>();
-		this.noOfCasesInMemory=0;
-		this.ccAlgoChoice = ccAlgoChoice;
-	}
+		//this.noOfCasesInMemory=0;
+		//this.ccAlgoChoice = ccAlgoChoice;
+	}*/
 	
-	public LocalConformanceTracker(LocalModelStructure lms, int maxCasesToStore, String ccAlgoChoice, Integer imputationRevisitWindowSize) {
+	/*public LocalConformanceTracker(LocalModelStructure lms, int maxCasesToStore, String ccAlgoChoice, Integer imputationRevisitWindowSize) {
 		//this.caseIdHistory = new HashMap<String, Integer>();
 		this.lms = lms;
 		this.maxCasesToStore = maxCasesToStore;
 		//this.caseIdsWithImputationInfo = new HashMap<String, Integer>();
 		//this.casesHistory = new HashMap<String, XTrace>();
-		this.noOfCasesInMemory=0;
-		this.ccAlgoChoice = ccAlgoChoice;
+		//this.noOfCasesInMemory=0;
+		//this.ccAlgoChoice = ccAlgoChoice;
 		//this.imputationRevisitSelected = imputationRevisitSelected;
-		this.imputationRevisitWindowSize = imputationRevisitWindowSize;
-	}
+		//this.imputationRevisitWindowSize = imputationRevisitWindowSize;
+	}*/
 	
 	/**
 	 * This method performs the replay of an event and keeps track of corresponding process instance.
@@ -86,13 +98,27 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 				// (i)with compliance score of 1, (ii)the cases out of non-deterministic region
 				//(iii) with the least imputation score i.e., least no. of imputed transitions OR a hybrid of these.
 				CasesRemoval casesRemoval = new CasesRemoval(lms, this );               //We can calculate a deletion candidacy score for relevant cases on arrival of every new event but that will
-				String toRemove = casesRemoval.selectCaseToBeRemoved();              //introduce unnecessary processing overhead as we may need to delete cases once in a while.				
+				/*String toRemove*/ caseToRemove = casesRemoval.selectCaseToBeRemoved();              //introduce unnecessary processing overhead as we may need to delete cases once in a while.				
 				//>>System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!The memory is full as there are: " + size() + " cases in memory. Therefore, this case is removed, Id: " + toRemove + " and trace is: " + get(toRemove).trace  );
-				this.remove(toRemove); //Removed the LocalConformanceTracker HashMap entry corresponding to the toRemove case ID
+				isTideStarted = true;
+				removalFlag = true;
+				noOfCasesDeleted++;
+				if(NullConfiguration.displayFineStats) {
+					System.out.println("Tide started at: " + caseId + ", " + newEventName );
+					System.out.println("And the case removed was: " + caseToRemove + " ------ " + get(caseToRemove).OCC2.replayer.getDataStore().get(caseToRemove));
+				}
+				PartialAlignment partialAlignment = get(caseToRemove).OCC2.replayer.getDataStore().get(caseToRemove);
+				if(partialAlignmentRecord.containsKey(caseToRemove)) {
+					partialAlignmentRecord.get(caseToRemove).add(partialAlignment);
+				}else {				
+					partialAlignmentRecord.put(caseToRemove, new ArrayList<PartialAlignment<String, Transition, Marking>>());
+					partialAlignmentRecord.get(caseToRemove).add(partialAlignment);
+				}
+				this.remove(caseToRemove); //Removed the LocalConformanceTracker HashMap entry corresponding to the toRemove case ID
 			}			
 			
 			// now we can perform the replay
-			LocalConformanceStatus lcs = new LocalConformanceStatus(lms, this.ccAlgoChoice, this.imputationRevisitWindowSize, caseId);
+			LocalConformanceStatus lcs = new LocalConformanceStatus(lms, caseId);
 			//currentScore = lcs.replayTrace(newEventName, tr, true );
 			currentScore = lcs.replayTrace(newEventName,true );
 			put(caseId, lcs);
@@ -103,6 +129,16 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 	
 	public Set<String> getHandledCases() {
 		return keySet();
+	}
+	
+	/*public Queue<String> getCasesInMemory(){
+		Queue<String> casesInMemory = new LinkedList<>();
+		casesInMemory.addAll(keySet());
+		return casesInMemory;
+	}*/
+	
+	public int getNoOfCasesInMemory() {
+		return size();
 	}
 	
 	/*public OnlineConformanceScore replayEvent(String caseId, String newEventName, XTrace tr) {

@@ -1,7 +1,16 @@
 package org.processmining.prefiximputation.modelbased.models;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.processmining.prefiximputation.inventory.NullConfiguration;
+
+import uk.ac.shef.wit.simmetrics.similaritymetrics.AbstractStringMetric;
+import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
 
 /**
  * This class keeps track of the conformance status for a single process instance
@@ -27,7 +36,7 @@ public class LocalConformanceStatus {
 	//protected Set<DirectFollowingRelation> observedRelations = new HashSet<DirectFollowingRelation>();
 	protected OnlineConformanceScore last;	
 	protected OnlineConformanceChecker1 OCC1;
-	protected OnlineConformanceChecker2 OCC2;
+	public /*protected*/ OnlineConformanceChecker2 OCC2;
 	protected PrefixImputation prefixImputation;
 	//protected OnlineConformanceCalculator2 OCC2 = new OnlineConformanceCalculator2(lms);
 	//protected OnlineConformanceCalculator2 OCC2 = new OnlineConformanceCalculator2();
@@ -41,11 +50,11 @@ public class LocalConformanceStatus {
 		//this.lastUpdate = new Date();		
 	}
 	
-	public LocalConformanceStatus (LocalModelStructure lms, String ccAlgoChoice, Integer imputationRevisitWindowSize, String caseId ) {
+	public LocalConformanceStatus (LocalModelStructure lms, String caseId ) {
 		this.lms = lms;
-		this.ccAlgoChoice = ccAlgoChoice;
+		this.ccAlgoChoice = lms.ccAlgoChoice;
 		//this.OCC2 = new OnlineConformanceChecker2(this.lms);		
-		this.imputationRevisitWindowSize = imputationRevisitWindowSize;
+		this.imputationRevisitWindowSize = lms.imputationRevisitWindowSize;
 		this.imputationRevisitSelected = imputationRevisitWindowSize==0?false:true;
 		this.caseId = caseId;
 		this.trace = new ArrayList<String>();
@@ -167,9 +176,43 @@ public class LocalConformanceStatus {
 	
 	public OnlineConformanceScore replayEventPrefAlign(String newEventName, /*XTrace tr,*/ Boolean isNew) {
 		
+		if(!lms.processModelAlphabet.contains(newEventName) && NullConfiguration.allowedDuplicateLabelApproximation){
+			Boolean NullConfigurationisExperimentValue = NullConfiguration.isExperiment;
+			NullConfiguration.isExperiment = false;
+			
+			//HashMap<String, Double> approxSimilarLabels = labelsApproximation(newEventName, lms.processModelAlphabet);
+			ArrayList<String> approxSimilarLabels = lms.getEquivalentModelLabels(newEventName);
+			HashMap<String, Double> approxSimilarLabelsCosts = new HashMap<String, Double>();
+			
+			for(String key : approxSimilarLabels) {
+				ArrayList<String> tempTrace = new ArrayList<String>();
+				tempTrace.addAll(trace);
+				tempTrace.add(key);
+				for (int i = 0; i < tempTrace.size(); i++) {
+					//last.setTraceCost(OCC2.processXLog(caseId, tempTrace.get(i)));
+					double score = lms.spareReplayer.processXLog(key, tempTrace.get(i));					
+					approxSimilarLabelsCosts.put(key, score);
+				}
+				lms.spareReplayer.replayer.getDataStore().clear();  //purge the history of the spare replayer				
+			}
+			
+			newEventName = Collections.min(approxSimilarLabelsCosts.entrySet(), Map.Entry.comparingByValue()).getKey();
+			//Do we need to alter the actual event with the equivalent label in model or we can just forward the equivalent label
+			//to the replayer but keep the original event unaltered, so that it may be revisited in future IF REQUIRED.
+			NullConfiguration.isExperiment = NullConfigurationisExperimentValue;  //restore the value of the isExperiment
+			
+		}
+		
 		if(isNew) {			
-			if (!lms.isFirstEvent(newEventName)) {             //if observed event is orphan
-								
+			
+			if (!lms.isFirstEvent(newEventName) && lms.processModelAlphabet.contains(newEventName)) { //if observed event is orphan
+																								//and is in Alphabet
+				prefixImputation =  new PrefixImputation(lms);
+				prefixImputation.imputePrefix(newEventName);
+				trace = prefixImputation.imputedTrace;
+				currentImputationSize = prefixImputation.imputationSize;
+				//imputationHistory = new HashMap<Integer,ArrayList<String>>();
+				//imputationHistory.put(0, prefixImputation.imputedPrefix);
 				//If the orphan event is located in one of the Non-Deterministic Region (NDR) then set the flag
 				//isInNonDeterministicRegion to "true" and copy the transitions of that NDR to the related LCS i.e.,
 				//transitionsInNonDeterministicRegion
@@ -180,6 +223,9 @@ public class LocalConformanceStatus {
 					//locate the orphan event in the process tree and find the relevant ND regions and activities to this case;
 					//Accordingly, the MM cost for these found activites will be set to 0
 					//How will this effect the imputation window approach
+					OCC2 = new OnlineConformanceChecker2(this.lms, true, newEventName);
+				}else {
+					OCC2 = new OnlineConformanceChecker2(this.lms, false, newEventName);
 				}
 				/*for (Map.Entry<Integer, ArrayList<String>> entry : (lms.getNonDeterministicRegions()).entrySet()) {				   
 				    isInNonDeterministicRegion = (entry.getValue()).contains(newEventName);
@@ -191,21 +237,15 @@ public class LocalConformanceStatus {
 					}
 				}*/
 				
-				prefixImputation =  new PrefixImputation(lms);
-				prefixImputation.imputePrefix(newEventName);
-				trace = prefixImputation.imputedTrace;
-				currentImputationSize = prefixImputation.imputationSize;
-				//imputationHistory = new HashMap<Integer,ArrayList<String>>();
-				//imputationHistory.put(0, prefixImputation.imputedPrefix);
-				OCC2 = new OnlineConformanceChecker2(this.lms, false);
 				batchCCPrefAlign(trace);
 				//>>System.out.println(last.toString());
 				refreshUpdateTime();
 				return last;
 			}else {
 				trace.add(newEventName);
-				OCC2 = new OnlineConformanceChecker2(this.lms, false);
-				last.setConformance(OCC2.processXLog(caseId, newEventName)>0.0?0.0:1.0);
+				OCC2 = new OnlineConformanceChecker2(this.lms, false, newEventName);
+				//last.setConformance(OCC2.processXLog(caseId, newEventName)>0.0?0.0:1.0);
+				last.setTraceCost(OCC2.processXLog(caseId, newEventName));
 				//>>System.out.println("The newly arrived event is the case-starting event and conformance has been calculated as:");
 				//last.setConformance(1.0);
 				//last.setCompleteness(0.0);
@@ -228,7 +268,12 @@ public class LocalConformanceStatus {
 					trace = prefixImputation.imputedTrace;
 					currentImputationSize = prefixImputation.imputationSize;
 					//imputationHistory.put(1, prefixImputation.imputedPrefix);
-					this.OCC2.applyGeneric();
+					if(lms.isInNonDeterministicRegion(prefixImputation.revisedOrphan)) {
+						OCC2 = new OnlineConformanceChecker2(this.lms, true, prefixImputation.revisedOrphan);
+					}else {
+						this.OCC2.applyGeneric();
+					}
+					
 					batchCCPrefAlign(trace);
 				}				
 				
@@ -238,7 +283,8 @@ public class LocalConformanceStatus {
 				return last;
 			}
 			//>>System.out.println("The newly arrived event is NOT a case-starting event and added to the its existing history. Now the case is: " + trace);
-			last.setConformance(OCC2.processXLog(caseId, newEventName)>0.0?0.0:1.0);                         //The trace cost needs to be transformed into conformance score.
+			//last.setConformance(OCC2.processXLog(caseId, newEventName)>0.0?0.0:1.0);                         //The trace cost needs to be transformed into conformance score.
+			last.setTraceCost(OCC2.processXLog(caseId, newEventName));
 			//>>System.out.println(last.toString());
 			refreshUpdateTime();
 			return last;
@@ -306,7 +352,38 @@ public class LocalConformanceStatus {
 			/*if(i==0) {
 				this.OCC2.applyGeneric();
 			}*/
-			last.setConformance(OCC2.processXLog(caseId, xtrace.get(i))>0.0?0.0:1.0);
+			//last.setConformance(OCC2.processXLog(caseId, xtrace.get(i))>0.0?0.0:1.0);
+			last.setTraceCost(OCC2.processXLog(caseId, xtrace.get(i)));
 		}
+	}
+	
+	private HashMap<String, Double> labelsApproximation(String event, Collection<String> labelsMap) {		
+
+		String tempEvent = event.toLowerCase();
+		HashMap<String, Double> simScores = new HashMap<String, Double>();
+		AbstractStringMetric metric = new Levenshtein();
+
+		/*int index = 0;
+			float simOld = Float.MIN_VALUE;*/
+		for (String label : labelsMap) {
+			String transitionLabel = label.toLowerCase();
+
+			/*if (tempEvent.startsWith(transitionLabel)) {          we are not considering this as in our example process both the labels
+					simScores.put(transitionLabel, (float) 0.75);       start with the transitionlabel
+					continue;
+				}*/
+
+			double sim = metric.getSimilarity(tempEvent, transitionLabel);
+			if (sim >= NullConfiguration.similarityThreshold) {
+				simScores.put(label, sim);
+			}
+		}
+
+		//mapTrans2ComboBox.get(transition).setForeground(Color.YELLOW);
+
+		return simScores;
+		/*} else {
+			return 0;
+		}*/
 	}
 }
