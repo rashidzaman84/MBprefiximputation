@@ -1,15 +1,10 @@
-package org.processmining.prefiximputation.tests;
+package org.processmining.prefiximputation.modelbased.plugins;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -17,9 +12,6 @@ import java.util.Set;
 
 import org.deckfour.xes.classification.XEventClasses;
 import org.deckfour.xes.extension.std.XConceptExtension;
-import org.deckfour.xes.extension.std.XTimeExtension;
-import org.deckfour.xes.in.XUniversalParser;
-import org.deckfour.xes.model.XEvent;
 import org.deckfour.xes.model.XLog;
 import org.deckfour.xes.model.XTrace;
 import org.javatuples.Triplet;
@@ -33,21 +25,22 @@ import org.processmining.framework.plugin.PluginContext;
 import org.processmining.framework.plugin.annotations.Plugin;
 import org.processmining.framework.plugin.annotations.PluginCategory;
 import org.processmining.framework.plugin.annotations.PluginVariant;
-import org.processmining.framework.util.Pair;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.graphbased.directed.petrinet.PetrinetGraph;
 import org.processmining.models.graphbased.directed.petrinet.elements.Place;
 import org.processmining.models.graphbased.directed.petrinet.elements.Transition;
 import org.processmining.models.graphbased.directed.petrinet.impl.PetrinetFactory;
 import org.processmining.models.semantics.petrinet.Marking;
+import org.processmining.onlineconformance.models.Move;
 import org.processmining.onlineconformance.models.PartialAlignment;
 import org.processmining.prefiximputation.inventory.NullConfiguration;
 import org.processmining.prefiximputation.modelbased.models.LocalConformanceStatus;
 import org.processmining.prefiximputation.modelbased.models.LocalConformanceTracker;
 //import org.processmining.streamconformance.local.model.LocalModelStructure;
 import org.processmining.prefiximputation.modelbased.models.LocalModelStructure;
+import org.processmining.prefiximputation.tests.ParallelCasesBasedLogToStreamConverter;
+import org.processmining.prefiximputation.tests.TimeStampsBasedLogToStreamConverter;
 import org.processmining.processtree.ProcessTree;
-import org.processmining.processtree.impl.ProcessTreeImpl;
 import org.processmining.processtree.ptml.Ptml;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -60,21 +53,21 @@ import gnu.trove.map.hash.TObjectDoubleHashMap;
 	returnLabels = { "Online conformance checking - with Model-based Prefix Imputation" },
 	returnTypes = { /*LocalOnlineConformanceConfiguration.class*/ NullConfiguration.class },
 	parameterLabels = {
-			/*"Model", "Marking", "Process Tree", "Event Data"*/
+			"Model", "Event Data"/*, "Marking", "Process Tree", "Event Data"*/
 	},
 	categories = PluginCategory.Analytics,
 	help = "This plugin computes the conformance of a given model with respect to an event streams.",
 	userAccessible = true)
-public class Scenario1Enhanced {
+public class PrefixImputationBasedPrefixAlignment {
 	//public static XFactory xesFactory = new XFactoryBufferedImpl();
 	protected Runtime runtime = Runtime.getRuntime();
-	@PluginVariant(requiredParameterLabels = { /*0, 1, 2, 3 */})
+	@PluginVariant(requiredParameterLabels = { 0, 1/*, 1, 2, 3 */})
 	@UITopiaVariant(
 		author = "R. Zaman",
 		email = "r.zaman@tue.nl",
 		affiliation = "TUe")
 	
-	public /*LocalOnlineConformanceConfiguration*/ NullConfiguration plugin(UIPluginContext context/*, Petrinet net, Marking initMarking, ProcessTree tree, XLog log*/) throws Exception {
+	public /*LocalOnlineConformanceConfiguration*/ NullConfiguration plugin(UIPluginContext context, Petrinet net, XLog log/*, Marking initMarking, ProcessTree tree, XLog log*/) throws Exception {
 	//public static void main(String[] args) throws Exception {
 		/*LocalModelStructure lms = new LocalModelStructure(context, net, initMarking, tree, "Prefix Alignment", 0); 				
 		LocalConformanceTracker tracker = new LocalConformanceTracker(lms, 100);*/
@@ -84,21 +77,21 @@ public class Scenario1Enhanced {
 		//String logFile = /*"D:\\TEST\\cpnToolsSimulationLog.mxml";*/ "D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Scenario 1\\CPN Model\\consolidated\\cpnToolsSimulationLog.mxml";
 		//String logFile ="D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Process Models BPI 2012 from Boudewijn\\Only_O_Events.xes";
 		
-		String petrinetFile = NullConfiguration.petriNetFilePath;
-		String logFile = NullConfiguration.eventLogFilePath;
+		//String petrinetFile = NullConfiguration.petriNetFilePath;
+		//String logFile = NullConfiguration.eventLogFilePath;
 		
-		Petrinet net = constructNet(petrinetFile);
+		//Petrinet net = constructNet(petrinetFile);
 		Marking initialMarking = getInitialMarking(net);
 		//Marking finalMarking = getFinalMarking(net);
-		XLog log;
+		//XLog log;
 		//XEventClassifier eventClassifier;
-		log = new XUniversalParser().parse(new File(logFile)).iterator().next();
+		//log = new XUniversalParser().parse(new File(logFile)).iterator().next();
 		/////////---------------------------------
-		File file = new File(NullConfiguration.processTreeFilePath);
+		/*File file = new File(NullConfiguration.processTreeFilePath);
 		//FileInputStream(file)
 		//PluginContext context = null;
-		Ptml ptml = importPtmlFromStream(context, /*input*/new FileInputStream(file), 
-				NullConfiguration.processTreeFilePath, file.length());
+		Ptml ptml = importPtmlFromStream(context, inputnew FileInputStream(file), 
+				NullConfiguration.processTreeFilePath, file.length());*/
 		/*if (ptml == null) {
 			
 			 * No PTML found in file. Fail.
@@ -110,10 +103,10 @@ public class Scenario1Enhanced {
 		 * PTML file has been imported. Now we need to convert the contents to a
 		 * regular Process tree.
 		 */
-		ProcessTree tree2 = new ProcessTreeImpl(ptml.getId(), ptml.getName());
+		/*ProcessTree tree2 = new ProcessTreeImpl(ptml.getId(), ptml.getName());
 		System.out.println(tree2);
 
-		tree2 = connectTree(context, ptml, tree2);
+		tree2 = connectTree(context, ptml, tree2);*/
 		//-----------------
 		//int maxCasesToStore = 100;
 		int maxCasesInMemoryCurrentWindow =0;
@@ -127,10 +120,18 @@ public class Scenario1Enhanced {
         double traceCost = 0.0;
         double completeLogCost = 0.0;
 		
-		LocalModelStructure lms = new LocalModelStructure(context, net, /*initMarking*/initialMarking, tree2, "Prefix Alignment", 0); 				
+		LocalModelStructure lms = new LocalModelStructure(context, net, /*initMarking*/initialMarking, /*tree2,*/ "Prefix Alignment", 0); 				
 		LocalConformanceTracker tracker = new LocalConformanceTracker(lms, /*maxCasesToStore*/NullConfiguration.maxCasesToStore);
 		////////////////////-------------
-		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = sortEventLogByDate2(log);	
+		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = new ArrayList<Triplet<String,String,Date>>();
+		
+		if(NullConfiguration.logToStream.equals("timestamps")) {
+			eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate2(log);
+		}else if (NullConfiguration.logToStream.equals("parallelRunningCases")) {
+			eventLogSortedByDate = ParallelCasesBasedLogToStreamConverter.logToStream(log, NullConfiguration.maxParallelRunningCases);
+		}		
+		//System.out.println(eventLogSortedByDate);
+		
 		//LinkedHashMap<Pair<String,String>, Date> eventLogSortedByDate = sortEventLogByDate(log);	//Date-sorted Stream		
 		int logSize = eventLogSortedByDate.size();
 		Date startDateCurrentWindow = getWindowTimeStamp(eventLogSortedByDate, "start");
@@ -143,6 +144,9 @@ public class Scenario1Enhanced {
         Set<String> nonConformantCasesCummulative = new  HashSet<String>();        
         List<Double> costPerTraceCummulative = new ArrayList<Double>();
         HashMap<String, ArrayList<PartialAlignment<String, Transition, Marking>>> partialAlignmentRecord =new HashMap<String , ArrayList<PartialAlignment<String, Transition, Marking>>>();
+        
+        Map<String, ArrayList<PartialAlignment>> alignmentsLife = new HashMap<String, ArrayList<PartialAlignment>>();
+        Map<String, ArrayList<Double>> alignmentsLifeScore = new HashMap<String, ArrayList<Double>>();
         
       //Window-specific statistics
         Set<String> casesObservedCurrentWindow = new  HashSet<String>();
@@ -160,13 +164,13 @@ public class Scenario1Enhanced {
         	caseId = entry.getValue0();
 			event = entry.getValue1();
 			eventTimeStamp = entry.getValue2();
-			if(caseId.equals("199071") ) {
+			if(caseId.equals(/*"199098""199071""179841""198113"*/"N79977") ) {
 				System.out.println("Found!!!!");
 			}
 			//----------------Check if the window is changing. If yes, then report the statistics of the current window and purge the current window-specific data structures
 			if(DateTimeComparator.getDateOnlyInstance().compare(startDateCurrentWindow, eventTimeStamp)<0) {
 				
-				System.out.println(startDateCurrentWindow + ", "						
+				/*System.out.println(startDateCurrentWindow + ", "						
 						+ maxCasesInMemoryCurrentWindow + ", "               //maximum cases in memory in a window
 						+ casesObservedCurrentWindow.size() + ", "                  //No. of cases observed current window
 						+ (casesObservedCurrentWindow.size() - nonConformantCasesCurrentWindow.size()) + ", "         //No. of conformant cases in a window
@@ -176,8 +180,8 @@ public class Scenario1Enhanced {
 						+ calculateDiffWindowRelatedCases(afterTideCases, casesObservedCurrentWindow) + ", "         // No. of after-surge cases in current window
 						+ eventsObservedCurrentWindow + ", "                                                 //No. of observed events in current window
 						+ (eventsObservedCurrentWindow-(int)calculateCurrentCosts(costPerTraceCurrentWindow)) + ", "   //No. of conformant observed events in current window
-						+ calculateCurrentCosts(costPerTraceCurrentWindow) /*+ ", "         //No. of NON-conformant observed events in current window
-						+ calculateCurrentCosts(costPerTraceWindowCummulative)*/);		//Cumulative costs of non-conformant events in current window				
+						+ calculateCurrentCosts(costPerTraceCurrentWindow) //+ ", "         //No. of NON-conformant observed events in current window
+						);	*/	// //+ calculateCurrentCosts(costPerTraceWindowCummulative)*/   Cumulative costs of non-conformant events in current window				
 				
 				startDateCurrentWindow= new Date(eventTimeStamp.getTime());
 				eventsObservedCurrentWindow = 0;
@@ -205,6 +209,18 @@ public class Scenario1Enhanced {
 			
 			//------conformance checking of the current observed event..............
 			traceCost = tracker.replayEvent(caseId, event).getTraceCost();
+			PartialAlignment partialAlignmentForCurrentEvent = tracker.get(caseId).OCC2.replayer.getDataStore().get(caseId);
+			if(alignmentsLife.containsKey(caseId)) {
+				alignmentsLife.get(caseId).add(partialAlignmentForCurrentEvent);
+				alignmentsLifeScore.get(caseId).add(partialAlignmentForCurrentEvent.getCost());
+			}else {
+				ArrayList<PartialAlignment> tempRecord = new ArrayList<PartialAlignment>();
+				tempRecord.add(partialAlignmentForCurrentEvent);
+				alignmentsLife.put(caseId, tempRecord);
+				ArrayList<Double> tempScore = new ArrayList<Double>();
+				tempScore.add(partialAlignmentForCurrentEvent.getCost());
+				alignmentsLifeScore.put(caseId, tempScore);
+			}
 			
 			///////////
 			/*if(partialAlignmentRecord.containsKey(caseId)) {
@@ -234,17 +250,19 @@ public class Scenario1Enhanced {
 			/*if(tideHasStarted==true && tidePassed == null && tracker.getNoOfCasesInMemory()<maxCasesToStore) {
 			tidePassed=true;
 			}*/
+			if(NullConfiguration.eventlog.equals("Scenario1Log.xes")) {
 			if(!tideStarted) {
 				beforeTideCases.add(caseId);
-			}else if(tideStarted && /*tidePassed==null*/ Integer.parseInt(caseId)<161 ) {
+			}else if(tideStarted && /*tidePassed==null*/ Integer.parseInt(caseId)<232 ) {
 				if(!beforeTideCases.contains(caseId)) {
 					duringTideCases.add(caseId);
 				}				
-			}else if (/*tidePassed!=null*/tideStarted && /*tidePassed==null*/ Integer.parseInt(caseId)>=161) {
+			}else if (/*tidePassed!=null*/tideStarted && /*tidePassed==null*/ Integer.parseInt(caseId)>=232) {
 				if(!beforeTideCases.contains(caseId) && !duringTideCases.contains(caseId)) {
 				afterTideCases.add(caseId);
 				}
-			}			
+			}	
+			}
 			
 			if(traceCost > 0.0 /*&& traceCost > costPerTraceCurrentWindow.get(caseId)*/) {				
 					nonConformantCasesCummulative.add(caseId);
@@ -263,7 +281,7 @@ public class Scenario1Enhanced {
 			
 			if(eventTimeStamp.compareTo(endDateOfTheLastWindow)==0 && eventsObservedTotal== logSize ) {
 				//this is the last event of the stream, report the final statistics of this last window
-				System.out.println(startDateCurrentWindow + ", "						
+				/*System.out.println(startDateCurrentWindow + ", "						
 						+ maxCasesInMemoryCurrentWindow + ", "               //maximum cases in memory in a window
 						+ casesObservedCurrentWindow.size() + ", "                  //No. of cases observed current window
 						+ (casesObservedCurrentWindow.size() - nonConformantCasesCurrentWindow.size()) + ", "         //No. of conformant cases in a window
@@ -273,8 +291,8 @@ public class Scenario1Enhanced {
 						+ calculateDiffWindowRelatedCases(afterTideCases, casesObservedCurrentWindow) + ", "         // No. of after-surge cases in current window
 						+ eventsObservedCurrentWindow + ", "                                                 //No. of observed events in current window
 						+ (eventsObservedCurrentWindow-(int)calculateCurrentCosts(costPerTraceCurrentWindow)) + ", "   //No. of conformant observed events in current window
-						+ calculateCurrentCosts(costPerTraceCurrentWindow) /*+ ", "         //No. of NON-conformant observed events in current window
-						+ calculateCurrentCosts(costPerTraceWindowCummulative)*/);		//Cumulative costs of non-conformant events in current window					
+						+ calculateCurrentCosts(costPerTraceCurrentWindow) //+ ", "         //No. of NON-conformant observed events in current window
+						);*/		///*+ calculateCurrentCosts(costPerTraceWindowCummulative)*/ Cumulative costs of non-conformant events in current window					
 				//System.out.println("The no. of deletions happened are: " + tracker.noOfCasesDeleted);		
 				completeLogCost += calculateCurrentCosts(costPerTraceCurrentWindow);
 				System.out.println("The costs for the whole log is: " + completeLogCost);
@@ -293,15 +311,74 @@ public class Scenario1Enhanced {
 		}
 		
 		//LocalOnlineConformanceConfiguration locc = new LocalOnlineConformanceConfiguration();
-
-		for(Entry<String, ArrayList<PartialAlignment<String, Transition, Marking>>> entry : tracker.partialAlignmentRecord.entrySet()) {			
-			System.out.println(entry.getKey() + "= " + entry.getValue());
+		System.out.println("----------------------------------------------------the final stats.-------");
+		Set<Move> distinctMoves = new HashSet<Move>();
+		for(Entry<String, ArrayList<PartialAlignment<String, Transition, Marking>>> entry_ : tracker.partialAlignmentRecord.entrySet()) {			
+			//System.out.println(entry.getKey() + "\t" + entry.getValue() + "\t" + entry.getValue().get(entry.getValue().size()-1).getCost());
+			System.out.print(entry_.getKey() + "\t");
+			double cost = 0.0;
+			
+			for(PartialAlignment<String, Transition, Marking> partialAlignment : entry_.getValue()) {
+				System.out.print(partialAlignment);
+				cost += partialAlignment.getCost();
+//				int index = 0;
+//				while(index<partialAlignment.size()/*!(partialAlignment.get(index)!= java.lang.IndexOutOfBoudsException)*/) {
+//					Move move = partialAlignment.get(index);
+//					if(move.getType().name().equals("MOVE_SYNC")) {
+//						//System.out.print(move);
+//						//System.out.println("\t is sync");
+//									
+//					}else if (move.getType().name().equals("MOVE_LABEL")) {
+//						//System.out.print(move);
+//						//System.out.println("\t is label move");
+//						if(!distinctMoves.contains(move)) {
+//							distinctMoves.add(move);
+//						}
+//							
+//					}else {
+//						//System.out.print(move);
+//						//System.out.println("\t is model move");
+//						if(!distinctMoves.contains(move)) {
+//							distinctMoves.add(move);
+//						}
+//					}
+//					
+//					/*String eventLabel = partialAlignment.get(index).getEventLabel().toString();
+//					String transitionLabel = partialAlignment.get(index).getTransition().getLabel();
+//					if(!eventLabel.equals(">>") && !transitionLabel.equals(">>")) {
+//						generatedTrace.add(transitionLabel);
+//					}*/
+//					index++;
+//				}
+			}
+			System.out.print("\t" + entry_.getValue().get(entry_.getValue().size()-1).getCost());
+			System.out.println("\t" + cost );			
+			}
+		System.out.println("********************************************************************");
+		double sum = 0.0;	
+		for(Entry<String, ArrayList<PartialAlignment>> entry : alignmentsLife.entrySet()) {
+			System.out.println(entry.getKey() + "\t" + entry.getValue() + "\t" + alignmentsLifeScore.get(entry.getKey()) + "\t" + sumArrayList(alignmentsLifeScore.get(entry.getKey())));
+			//System.out.println(alignmentsScore.get(entry.getKey()));
+			sum += sumArrayList(alignmentsLifeScore.get(entry.getKey()));
 		}
+		System.out.println("And the grand sum is " + sum);
 		
+		for(Entry<String, ArrayList<Double>> entry : alignmentsLifeScore.entrySet()) {
+			System.out.println();
+			System.out.print(entry.getKey() + ",");
+			for(Double value: entry.getValue()) {
+				System.out.print(value + ",");
+			}
+		}
+		/*Iterator iter = distinctMoves.iterator();
+		while(iter.hasNext()){
+			System.out.println(iter.next());
+		}*/
+		System.out.println("And the grand sum is " + sum);
 		return new NullConfiguration();
 	}
 	
-	private static ArrayList<Triplet<String,String,Date>> sortEventLogByDate2(XLog log){
+	/*private static ArrayList<Triplet<String,String,Date>> sortEventLogByDate2(XLog log){
 		int index = 0;
 		Map<Integer, Triplet<String,String,Date>> eventsStream = new HashMap<Integer, Triplet<String,String,Date>>();
 		for (XTrace t : log) {
@@ -336,7 +413,7 @@ public class Scenario1Enhanced {
 	    	printTripletList(sortedByValue);
 	    }
 		return sortedByValue;
-	}
+	}*/
 			
 		//------------------------------------------
 		/*int factor = 1;
@@ -419,12 +496,12 @@ public class Scenario1Enhanced {
 		return locc;
 	}*/
 	
-	private static void printTripletList(ArrayList<Triplet<String,String,Date>> tripletList ) {
+	/*private static void printTripletList(ArrayList<Triplet<String,String,Date>> tripletList ) {
 		for(Triplet entry: tripletList) {
 			 System.out.println(entry.getValue0() + ", " +  entry.getValue1() + ", " +  entry.getValue2());
 			 //System.out.println(entry.getValue(0) + ", " +  entry.getValue(1) + ", " +  entry.getValue(2));
 		}
-	}
+	}*/
 	private static ProcessTree connectTree(PluginContext context, Ptml ptml, ProcessTree tree) {
 		ptml.unmarshall(tree);
 //		System.out.println("Tree contains " + tree.getNodes().size() + " nodes and " + tree.getEdges().size() + "  edges.");
@@ -569,8 +646,10 @@ public class Scenario1Enhanced {
 			if (t.isSilent() || t.getLabel().startsWith("tau") || t.getLabel().equals("t2") || t.getLabel().equals("t8")
 					|| t.getLabel().equals("complete")) {
 				tt.setInvisible(true);
+			}else {
+				t2t.put(t, tt);
 			}
-			t2t.put(t, tt);
+			
 		}
 
 		// flow
@@ -620,7 +699,7 @@ public class Scenario1Enhanced {
 		return initMarking;
 	}
 	
-	private static LinkedHashMap<Pair<String,String>, Date> sortEventLogByDate(XLog log){
+	/*private static LinkedHashMap<Pair<String,String>, Date> sortEventLogByDate(XLog log){
 		Map<Pair<String,String>, Date> eventsStream = new HashMap<Pair<String,String>, Date>();
 		for (XTrace t : log) {
 			for(XEvent e: t) {
@@ -649,7 +728,7 @@ public class Scenario1Enhanced {
     	}
     printLinkedHashMap(sortedByValue);
 	return sortedByValue;
-	}
+	}*/
 	
 	private static Date getWindowTimeStamp(ArrayList<Triplet<String,String,Date>> sortedByValue, String choice) {
 		//LinkedList<Pair<String,String>> listKeys = new LinkedList<Pair<String,String>>(sortedByValue.keySet());
@@ -680,11 +759,19 @@ public class Scenario1Enhanced {
 		}
 		return totalCost;
 	}
+	public double sumArrayList(ArrayList<Double> arrayList) {
+		Double sum = 0.0;
+		for(int i = 0; i < arrayList.size(); i++)
+	    {
+	        sum += arrayList.get(i);
+	    }
+	    return sum;		
+	}
 	
-	private static void printLinkedHashMap(LinkedHashMap<Pair<String,String>,Date> sortedByValue  ){
+	/*private static void printLinkedHashMap(LinkedHashMap<Pair<String,String>,Date> sortedByValue  ){
 		for (Map.Entry<Pair<String,String>,Date> entry : sortedByValue.entrySet()) {		    
 		   System.out.println(entry.getKey() + ", " +  entry.getValue());
 		}
-	}
+	}*/
 	
 }

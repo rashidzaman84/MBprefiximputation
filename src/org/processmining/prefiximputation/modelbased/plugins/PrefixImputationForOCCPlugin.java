@@ -25,14 +25,14 @@ import org.processmining.processtree.ProcessTree;
 	returnLabels = { "Online conformance checking - with Model-based Prefix Imputation" },
 	returnTypes = { LocalOnlineConformanceConfiguration.class },
 	parameterLabels = {
-			"Model", "Marking","Process Tree"
+			"Model", "Marking"/*,"Process Tree"*/
 	},
 	categories = PluginCategory.Analytics,
 	help = "This plugin computes the conformance of a given model with respect to an event streams.",
 	userAccessible = true)
 public class PrefixImputationForOCCPlugin {
 
-	@PluginVariant(requiredParameterLabels = { 0, 1, 2 })
+	@PluginVariant(requiredParameterLabels = { 0, 1/*, 2*/ })
 	@UITopiaVariant(
 		author = "R. Zaman",
 		email = "r.zaman@tue.nl",
@@ -91,7 +91,7 @@ public class PrefixImputationForOCCPlugin {
 		locc.setCCAlgoChoice(configNetwork.getCCAlgoChoice());
 		locc.setImputationRevisitWindowSize(Integer.parseInt(configNetwork.getImputationRevisitWindowSize()));
 		//System.out.println("mid");
-		locc.setLocalModelStructure(new LocalModelStructure(context, net, initMarking, tree, locc.getCCAlgoChoice(), locc.getImputationRevisitWindowSize())); //the local model structure
+		locc.setLocalModelStructure(new LocalModelStructure(context, net, initMarking, /*tree,*/ locc.getCCAlgoChoice(), locc.getImputationRevisitWindowSize())); //the local model structure
 		//will now contain (i)the list of non-deterministic and deterministic transitions, (ii) the mechanism to find
 		//the shortest-path through Dijkstra Algorithm
 		//System.out.println("now");

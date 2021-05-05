@@ -5,23 +5,30 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.deckfour.xes.classification.XEventClasses;
+import org.processmining.contexts.uitopia.UIPluginContext;
 import org.processmining.framework.plugin.PluginContext;
 import org.processmining.framework.plugin.annotations.Plugin;
 import org.processmining.framework.util.Pair;
 import org.processmining.models.graphbased.directed.analysis.ShortestPathFactory;
 import org.processmining.models.graphbased.directed.analysis.ShortestPathInfo;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
+import org.processmining.models.graphbased.directed.petrinet.PetrinetEdge;
 import org.processmining.models.graphbased.directed.petrinet.PetrinetGraph;
 import org.processmining.models.graphbased.directed.petrinet.elements.Place;
 import org.processmining.models.graphbased.directed.transitionsystem.CoverabilityGraph;
 import org.processmining.models.graphbased.directed.transitionsystem.State;
 import org.processmining.models.graphbased.directed.transitionsystem.Transition;
 import org.processmining.models.semantics.petrinet.Marking;
+import org.processmining.onlineconformance.models.ModelSemanticsPetrinet;
 import org.processmining.plugins.petrinet.behavioralanalysis.CGGenerator;
 import org.processmining.prefiximputation.inventory.NullConfiguration;
 import org.processmining.processtree.Block;
@@ -35,6 +42,7 @@ import gnu.trove.map.TObjectDoubleMap;
 import gnu.trove.map.hash.TObjectDoubleHashMap;
 
 
+
 /**
  * This class is a container of all structures needed for local online conformance checking.
  * 
@@ -42,10 +50,11 @@ import gnu.trove.map.hash.TObjectDoubleHashMap;
  */
 public class LocalModelStructure {
 
-	private ArrayList<String> caseStarterActivities = new ArrayList<String>();
+	public ArrayList<String> caseStarterActivities = new ArrayList<String>();
 	//private Map<Integer, ArrayList<String>> nonDeterministicRegions = new HashMap<Integer, ArrayList<String>>();
-	public ArrayList<String> nonDeterministicActivities = new ArrayList<String>();  //should be Map<String, ArrayList<String>> as there
+	public Set<String> nonDeterministicActivities = new HashSet<String>();  //should be Map<String, ArrayList<String>> as there
 																// can be multiple non-deterministic regions 
+	public ArrayList</*Place*/String> nonDeterministicPlaces = new ArrayList</*Place*/String>();
 	//private String[] deterministicTransitions = {"E"};      //We shall also take transitions after E into account
 														   //as E may get lost or G/H/F may arrive out-of-order	
 	//HashSet<Block> NDBlocks = new HashSet<Block>();
@@ -70,44 +79,24 @@ public class LocalModelStructure {
 	public TObjectDoubleMap<String> labelMoveCosts = new TObjectDoubleHashMap<>();
 	public OnlineConformanceChecker2 spareReplayer;
 	public List<String> processModelAlphabet = new ArrayList<String>();
+	public ShortestPathInfo<State, Transition> shortestPathCalculatorUnfoldedCopy;
+	public CoverabilityGraph coverabilityGraphUnfoldedCopy;
+	public ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> NDStarterTransitions = new ArrayList<>();
+	public ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> NDEndingTransitions = new ArrayList<>();
+	public org.processmining.models.graphbased.directed.petrinet.elements.Transition mainSplitter;
+	public Marking mainSplitterOutMarking;
+	public HashMap<org.processmining.models.graphbased.directed.petrinet.elements.Transition, Marking> NDEndingTransitionsEnteringMarkings= new HashMap<>();
+	public HashMap<String, ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> executionSequences = new HashMap<>();
+	public HashMap<String, NonDeterministicRegion> NDRegions = new HashMap<>();
 	
 	
+	public HashMap<String, NonDeterministicRegion> getNDRegionsCopy() {		
+		HashMap<String, NonDeterministicRegion> copy = SerializationUtils.clone(NDRegions);	   
+	    return copy;		
+	}
 	// cached values
 	private Double maxOfMinRelationsAfter = null;
-
-	/**
-	 * Initializes the local model structure
-	 * 
-	 * @param context
-	 * @param net
-	 * @param initMarking
-	 * @throws Exception
-	 */
-	public LocalModelStructure(PluginContext context, Petrinet net, Marking initMarking) throws Exception {
-		this.net = net;
-		this.initialMarking = getInitialMarking(net);
-		this.finalMarking = getFinalMarking(net);
-		//this.eventClasses = getEventClasses(net);
-		//this.mapping = getEventTransitionMapping(net,this.eventClasses);
-		//populateStructure(context, net, initMarking);
-		populateStructureForBehavioralProfiles(context, net, initMarking);
-	}
 	
-	public LocalModelStructure(PluginContext context, Petrinet net, Marking initMarking, ProcessTree tree, String ccAlgoChoice, int imputationRevisitWindowSize) throws Exception {
-		this.net = net;
-		this.tree = tree;
-		this.initialMarking = getInitialMarking(net);
-		this.finalMarking = getFinalMarking(net);
-		//this.eventClasses = getEventClasses(net);
-		this.imputationRevisitWindowSize = imputationRevisitWindowSize;
-		this.ccAlgoChoice = ccAlgoChoice;
-		//this.mapping = getEventTransitionMapping(net,this.eventClasses);
-		populateAppropriateStructure(context, net, initMarking, ccAlgoChoice);
-		if(NullConfiguration.allowedDuplicateLabelApproximation) {
-			this.spareReplayer = new OnlineConformanceChecker2(this, false, null);
-		}
-	}
-		
 	/**
 	 * Initializes the local model structure
 	 * 
@@ -124,6 +113,146 @@ public class LocalModelStructure {
 			Petrinet net) {
 		populateStructure(coverabilityGraph, coverabilityGraphUnfolded, coverabilityGraphDualUnfolded);
 	}
+
+	/**
+	 * Initializes the local model structure
+	 * 
+	 * @param context
+	 * @param net
+	 * @param initMarking
+	 * @throws Exception
+	 */
+	public LocalModelStructure(UIPluginContext context, Petrinet net, Marking initMarking) throws Exception {
+		this.net = net;
+		this.initialMarking = getInitialMarking(net);
+		this.finalMarking = getFinalMarking(net);
+		//this.eventClasses = getEventClasses(net);
+		//this.mapping = getEventTransitionMapping(net,this.eventClasses);
+		//populateStructure(context, net, initMarking);
+		populateStructureForBehavioralProfiles(context, net, initMarking);
+	}
+	
+	public LocalModelStructure(UIPluginContext context, Petrinet net, Marking initMarking, /*ProcessTree tree,*/ String ccAlgoChoice, int imputationRevisitWindowSize) throws Exception {
+		this.net = net;
+		//this.tree = tree;
+		this.initialMarking = getInitialMarking(net);
+		this.finalMarking = getFinalMarking(net);
+		//this.eventClasses = getEventClasses(net);
+		this.imputationRevisitWindowSize = imputationRevisitWindowSize;
+		this.ccAlgoChoice = ccAlgoChoice;
+		//this.mapping = getEventTransitionMapping(net,this.eventClasses);
+		populateAppropriateStructure(context, net, initMarking, ccAlgoChoice);
+		if(NullConfiguration.allowedDuplicateLabelApproximation) {
+			this.spareReplayer = new OnlineConformanceChecker2(this, false, null);
+		}
+	}
+	
+	protected void populateAppropriateStructure(UIPluginContext context, Petrinet net, Marking initMarking, String ccAlgoChoice) throws Exception {
+		switch(ccAlgoChoice) {
+			case "Behavioral Profiles":
+				populateStructureForBehavioralProfiles(context, net, initMarking);
+				break;
+			case "Prefix Alignment":
+				populateStructureForPrefixAlignment(context, net, initMarking);
+				//bypasspopulateStructureForPrefixAlignment(context, net, initMarking);
+				break;
+			default:
+			    System.out.println("A wrong CC Algo Choice has been made during configuration");			   
+			}
+	}
+	protected void bypasspopulateStructureForPrefixAlignment(UIPluginContext context, Petrinet net, Marking initMarking) throws Exception {
+		populateCaseStarters(net);
+		getCCEssentials(context, net);
+		//calculateNDRegions();
+		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition tr: net.getTransitions()) {
+			System.out.println(tr.getLabel());
+		}
+	}
+	
+	protected void populateStructureForPrefixAlignment(UIPluginContext context, Petrinet net, Marking initMarking) throws Exception {
+		// build coverability graph of unfolded net
+		Pair<Petrinet, Marking> unfoldedTotal = PetrinetHelper.unfold(context, net);
+				CoverabilityGraph coverabilityGraphUnfolded = context.tryToFindOrConstructFirstNamedObject(
+						CoverabilityGraph.class,
+						CGGenerator.class.getAnnotation(Plugin.class).name(),
+						null,
+						null,
+						unfoldedTotal.getFirst(),
+						unfoldedTotal.getSecond());	
+				
+		/*test cg = new test();
+				CGGenerator cgg = new CGGenerator();
+				PetrinetSemantics semantics = PetrinetSemanticsFactory.regularPetrinetSemantics(Petrinet.class);				
+				CoverabilityGraph coverabilityGraphUnfolded = cg.petriNetToCoverabilityGraph(context, net, initialMarking);*/
+				
+				//System.out.println("I am here");
+				/*coverabilityGraphUnfoldedCopy = context.tryToFindOrConstructFirstNamedObject(
+						CoverabilityGraph.class,
+						CGGenerator.class.getAnnotation(Plugin.class).name(),
+						null,
+						null,
+						unfoldedTotal.getFirst(),
+						unfoldedTotal.getSecond());*/
+				
+				coverabilityGraphUnfoldedCopy = coverabilityGraphUnfolded;
+				
+				populateCaseStarters(net);
+				//populateNonDeterministicActivities(tree);
+				getCCEssentials(context, net);
+				populateStructure(coverabilityGraphUnfolded);
+				calculateNDRegions();
+				//Now we need to define ND class.
+				
+				/*if(imputationRevisitWindowSize>0) {
+					// build coverability graphs
+					CoverabilityGraph coverabilityGraph = context.tryToFindOrConstructFirstNamedObject(
+							CoverabilityGraph.class,
+							CGGenerator.class.getAnnotation(Plugin.class).name(),
+							null,
+							null,
+							net,
+							initMarking);
+					
+					populateDirectFollowingRelations(coverabilityGraph);
+				}*/
+	}
+	
+	protected void populateStructureForBehavioralProfiles(PluginContext context, Petrinet net, Marking initMarking) throws Exception {
+		
+		// build coverability graphs
+		CoverabilityGraph coverabilityGraph = context.tryToFindOrConstructFirstNamedObject(
+				CoverabilityGraph.class,
+				CGGenerator.class.getAnnotation(Plugin.class).name(),
+				null,
+				null,
+				net,
+				initMarking);
+		
+		// build coverability graph of unfolded net
+		Pair<Petrinet, Marking> unfoldedTotal = PetrinetHelper.unfold(context, net);
+		CoverabilityGraph coverabilityGraphUnfolded = context.tryToFindOrConstructFirstNamedObject(
+				CoverabilityGraph.class,
+				CGGenerator.class.getAnnotation(Plugin.class).name(),
+				null,
+				null,
+				unfoldedTotal.getFirst(),
+				unfoldedTotal.getSecond());
+		
+		// build coverability graph of dual net
+		Pair<Petrinet, Marking> dualNet = PetrinetHelper.computeDual(context, net);
+		Pair<Petrinet, Marking> unfoldedDualNet = PetrinetHelper.unfold(context, dualNet.getFirst());
+		CoverabilityGraph coverabilityGraphDualUnfolded = context.tryToFindOrConstructFirstNamedObject(
+				CoverabilityGraph.class,
+				CGGenerator.class.getAnnotation(Plugin.class).name(),
+				null,
+				null,
+				unfoldedDualNet.getFirst(),
+				unfoldedDualNet.getSecond());
+		
+		populateCaseStarters(net);
+		//populateNonDeterministicActivities(tree);
+		populateStructure(coverabilityGraph, coverabilityGraphUnfolded, coverabilityGraphDualUnfolded);
+	}	
 	
 	/**
 	 * This method checks if the given relation is allowed by the model or not
@@ -166,8 +295,24 @@ public class LocalModelStructure {
 	public ArrayList<String> getShortestPrefix(String orphanEvent) {		
 		return shortestPrefixes.get(orphanEvent);
 	}	
-	public boolean isFirstEvent(String newEventName) {
-		return caseStarterActivities.contains(newEventName);
+	public boolean isCaseStartingEvent(String newEventName) {
+		//if the event is directly contained in the process model alphabet OR is label-equivalently available
+		//System.out.println(newEventName);
+		//System.out.println(labelsToModelElementsMap.get(newEventName));
+		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition transition: labelsToModelElementsMap.get(newEventName)){
+			if(caseStarterActivities.contains(transition.getLabel())) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean isInProcessModelAlphabet(String newEventName) {
+		if(labelsToModelElementsMap.containsKey(newEventName)) {
+			return true;
+		}else {
+			return false;
+		}
 	}
 	public boolean isAllowed(DirectFollowingRelation relation) {
 		return allowedDirectFollowingRelations.contains(relation);
@@ -216,8 +361,8 @@ public class LocalModelStructure {
 		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(net);
 		return getEventClassesOOM.manipulateModel();		
 	}*/
-	private void getCCEssentials(Petrinet net) {
-		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(net);
+	private void getCCEssentials(UIPluginContext context, Petrinet net) {
+		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(context, net);
 		getEventClassesOOM.manipulateModel();
 		this.eventClasses = getEventClassesOOM.getXEventClasses();
 		this.labelsToModelElementsMap = getEventClassesOOM.getLabelsToModelElementsMap();
@@ -225,66 +370,20 @@ public class LocalModelStructure {
 		this.modelMoveCosts = getEventClassesOOM.getModelMoveCosts();
 		this.labelMoveCosts = getEventClassesOOM.getLabelMoveCosts();	
 		this.processModelAlphabet = getEventClassesOOM.getProcessModelAlphabet();
+		//this.NDStarterTransitions = getEventClassesOOM.getNDStarterTransitions();
+		this.NDEndingTransitions = getEventClassesOOM.getNDEndingTransitions();
+		this.mainSplitter = getEventClassesOOM.mainSplitter;
+		this.mainSplitterOutMarking = getEventClassesOOM.mainSplitterOutMarking;
+		this.NDEndingTransitionsEnteringMarkings = getEventClassesOOM.NDEndingTransitionsEnteringMarkings;
 	}
 	/*private static TransEvClassMapping getEventTransitionMapping(Petrinet net, XEventClasses eventClasses) {
 		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(net);
 		return getEventClassesOOM.mapEventsToTransitions(net, eventClasses);
 	}*/
 	
-	protected void populateAppropriateStructure(PluginContext context, Petrinet net, Marking initMarking, String ccAlgoChoice) throws Exception {
-		switch(ccAlgoChoice) {
-			case "Behavioral Profiles":
-				populateStructureForBehavioralProfiles(context, net, initMarking);
-				break;
-			case "Prefix Alignment":
-				populateStructureForPrefixAlignment(context, net, initMarking);
-				break;
-			default:
-			    System.out.println("A wrong CC Algo Choice has been made during configuration");			   
-			}
-	}
 	
-	protected void populateStructureForBehavioralProfiles(PluginContext context, Petrinet net, Marking initMarking) throws Exception {
-		//populate the transitions list here
-		/*net.getClass();
-		//allowedActivities = net.getTransitions().toString();
-		for(int i=0; i<allowedActivities.length;i++) {
-			System.out.println(net.getTransitions().toString());
-		}*/
-		// build coverability graphs
-		CoverabilityGraph coverabilityGraph = context.tryToFindOrConstructFirstNamedObject(
-				CoverabilityGraph.class,
-				CGGenerator.class.getAnnotation(Plugin.class).name(),
-				null,
-				null,
-				net,
-				initMarking);
-		
-		// build coverability graph of unfolded net
-		Pair<Petrinet, Marking> unfoldedTotal = PetrinetHelper.unfold(context, net);
-		CoverabilityGraph coverabilityGraphUnfolded = context.tryToFindOrConstructFirstNamedObject(
-				CoverabilityGraph.class,
-				CGGenerator.class.getAnnotation(Plugin.class).name(),
-				null,
-				null,
-				unfoldedTotal.getFirst(),
-				unfoldedTotal.getSecond());
-		
-		// build coverability graph of dual net
-		Pair<Petrinet, Marking> dualNet = PetrinetHelper.computeDual(context, net);
-		Pair<Petrinet, Marking> unfoldedDualNet = PetrinetHelper.unfold(context, dualNet.getFirst());
-		CoverabilityGraph coverabilityGraphDualUnfolded = context.tryToFindOrConstructFirstNamedObject(
-				CoverabilityGraph.class,
-				CGGenerator.class.getAnnotation(Plugin.class).name(),
-				null,
-				null,
-				unfoldedDualNet.getFirst(),
-				unfoldedDualNet.getSecond());
-		
-		populateCaseStarters(net);
-		populateNonDeterministicActivities(tree);
-		populateStructure(coverabilityGraph, coverabilityGraphUnfolded, coverabilityGraphDualUnfolded);
-	}
+	
+	
 	
 	protected void populateStructure(
 			CoverabilityGraph coverabilityGraph,
@@ -382,11 +481,183 @@ public class LocalModelStructure {
 		}*/
 	}
 	
+	public void calculateNDRegions() {
+		if(Objects.isNull(mainSplitter)) {
+			System.out.println("No splitter found");
+			return;
+		}
+		String start = mainSplitter.getLabel();
+		State startState = null;
+		
+		for (State s : coverabilityGraphUnfoldedCopy.getNodes()) {
+			for (Transition first : TSUtils.getOutgoingNonTau(s, new HashSet<Transition>())) {
+				if(TSUtils.getTransitionLabel(first).equals(start)) {
+					startState = s;  //add break below
+				}
+			}			
+		}		
+		Iterator iterator = NDEndingTransitions.iterator();
+		while(iterator.hasNext()) {
+			org.processmining.models.graphbased.directed.petrinet.elements.Transition target = (org.processmining.models.graphbased.directed.petrinet.elements.Transition) iterator.next();
+			State targetState = null;
+			String end = target.getLabel();
+			
+			ArrayList<String> temp = new ArrayList<String>();
+		/*}
+		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition target : NDEndingTransitions) {
+			String end = target.getLabel();
+			State targetState = null;*/
+			for (State s : coverabilityGraphUnfoldedCopy.getNodes()) {				
+				for(Transition second : TSUtils.getIncomingNonTau(s, new HashSet<Transition>())) {
+					if(TSUtils.getTransitionLabel(second).equals(end)) {
+						targetState = s;
+						ArrayList<String> temp2 =  getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState);
+						if(temp2.size()>temp.size()) {
+							temp.clear();
+							temp.addAll(temp2);
+						}
+					}
+				}
+			}
+			//ArrayList<String> temp = new ArrayList<String>();
+			temp =/*TSUtils.*/getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState);
+			
+			//System.out.println(start + "-->" + end + " :: " + path);
+			//ArrayList<String> temp = new ArrayList<String>();
+			//temp = pathToPrefix(path,start, end);
+			System.out.println(temp);
+			if(!temp.isEmpty()) {
+				if(!isTrueTerminal(temp,end)) {
+					iterator.remove();
+					executionSequences.remove(end);
+				}else {
+					nonDeterministicActivities.addAll(temp.subList(1, temp.size()));
+				}
+			}
+			
+		}	
+		
+		populateNDObjects();
+	}
+	
+	public boolean isTrueTerminal(ArrayList<String> temp, String terminalActivityCandidate) {
+		ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> tempTrace = new ArrayList<>();
+		org.processmining.models.graphbased.directed.petrinet.elements.Transition terminalActivityCandidatetransition = null;
+		for(String str: temp) {
+			for(org.processmining.models.graphbased.directed.petrinet.elements.Transition tran : net.getTransitions()) {
+				if(tran.getLabel().equals(str)) {
+					tempTrace.add(tran);
+				}
+				if(tran.getLabel().equals(terminalActivityCandidate)) {
+					terminalActivityCandidatetransition = tran;
+				}
+			}
+		}
+		System.out.println(tempTrace.toString());
+		executionSequences.put(terminalActivityCandidate, tempTrace);
+		tempTrace.remove(0);
+		//executionSequences.put(terminalActivityCandidate, tempTrace);
+		ModelSemanticsPetrinet<Marking> modelSemantics = ModelSemanticsPetrinet.Factory.construct(net);
+		Marking mark = this.mainSplitterOutMarking;
+		for(int i=0; i<tempTrace.size();i++) {
+			Marking inputMarking = constructInputMarking(tempTrace.get(i));
+			if(inputMarking.compareTo(mark)==0 && i<tempTrace.size()-1) {
+				return false;
+			}
+			mark = modelSemantics.execute(mark, tempTrace.get(i) );			
+		}
+		System.out.println(this.NDEndingTransitionsEnteringMarkings.get(terminalActivityCandidatetransition));
+		if(mark.compareTo(this.NDEndingTransitionsEnteringMarkings.get(terminalActivityCandidatetransition))==0) {
+			System.out.println("true terminal");
+			return true;
+		}else {
+			return false;
+		}
+	}
+	
+	public Marking constructInputMarking(org.processmining.models.graphbased.directed.petrinet.elements.Transition transit) {
+		Marking constructedMarking = new Marking();
+			
+		for(PetrinetEdge p : net.getEdges()) {
+			if(p.getTarget().equals(transit)) {
+				//System.out.println(p.getTarget() );
+				for(Place pl: net.getPlaces()) {
+					if(pl.getLabel().equals(p.getSource().toString())) {
+						//System.out.println(pl);
+						constructedMarking.add(pl);
+					}
+				}
+				//mainSplitterOutMarking.add( p.getLabel());
+			}
+		}
+		
+		return constructedMarking;
+	}
+	
+	public void populateNDObjects() {
+		for(Entry<String, ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> entry: executionSequences.entrySet()) {
+			NDRegions.put(entry.getKey(), new NonDeterministicRegion());
+			int index=0;
+			for(Place p : mainSplitterOutMarking.baseSet()) {
+				index++;
+				ArrayList<String> temporary = extract(p, entry.getValue());
+				NonDeterministicRegion.branch b1= NDRegions.get(entry.getKey()).new branch(entry.getKey() + "-branch " + p.getLabel()) ;
+				b1.setBranchExecution(temporary);
+				NDRegions.get(entry.getKey()).addToSymmetry(/*p, */b1);
+			}
+		}
+		 
+		
+	}
+	
+	public ArrayList<String> extract(Place p,  ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> array) {
+		ArrayList<String> temp = new ArrayList<>();
+		ModelSemanticsPetrinet<Marking> modelSemantics = ModelSemanticsPetrinet.Factory.construct(net);
+		Marking mr = new Marking();
+		mr.add(p);
+		org.processmining.models.graphbased.directed.petrinet.elements.Transition match = null;
+		do {
+			match = null;
+			outerloop:
+			for(org.processmining.models.graphbased.directed.petrinet.elements.Transition trOut : modelSemantics.getEnabledTransitions(mr)) {
+				Iterator iter = array.iterator();
+				while(iter.hasNext()) {
+					org.processmining.models.graphbased.directed.petrinet.elements.Transition trIn = (org.processmining.models.graphbased.directed.petrinet.elements.Transition) iter.next();
+					if (trIn.getLabel().equals(trOut.getLabel())){
+						match = trIn;
+						//mr = modelSemantics.execute(mr, match);
+						iter.remove();
+						 break outerloop;
+					}
+				}
+				/*for(org.processmining.models.graphbased.directed.petrinet.elements.Transition trIn : array) {
+					if (trIn.getLabel().equals(trOut.getLabel())){
+						match = trIn;
+						//mr = modelSemantics.execute(mr, match);
+						 break outerloop;
+					}
+				}*/
+				//mr = modelSemantics.execute(mr, matlooba);
+			}
+			if(match == null) {
+				;
+			}else {
+				System.out.println(match.getLabel());
+				temp.add(match.getLabel());
+				mr = modelSemantics.execute(mr, match);
+				//matlooba=null;
+			}
+			
+		}while(modelSemantics.getEnabledTransitions(mr)!=null && match!=null);
+		return temp;
+	}
+	
 	protected void populateShortestPrefixes(CoverabilityGraph coverabilityGraphUnfolded) {
 		ShortestPathInfo<State, Transition> shortestPathCalculatorUnfolded = ShortestPathFactory.calculateAllShortestDistanceDijkstra(coverabilityGraphUnfolded);
-		
+		shortestPathCalculatorUnfoldedCopy = ShortestPathFactory.calculateAllShortestDistanceDijkstra(coverabilityGraphUnfolded);
 		// populate min/max relations BEFORE from unfolded model
 		State startState = null;
+		
 		for (Object s : coverabilityGraphUnfolded.getStates()) {
 			if (coverabilityGraphUnfolded.getInEdges(coverabilityGraphUnfolded.getNode(s)).isEmpty()) {
 				startState = coverabilityGraphUnfolded.getNode(s);
@@ -411,8 +682,12 @@ public class LocalModelStructure {
 					System.out.println("targetState is : " + targetState.toString());
 					List<DirectFollowingRelation> path = TSUtils.getShortestPath(shortestPathCalculatorUnfolded, startState, targetState);
 					System.out.println("path: " + path.toString());
+					//System.out.println(shortestPathCalculatorUnfolded.getShortestPath(startState, targetState));
+					
 					ArrayList<String> temp = new ArrayList<String>();
 					temp = pathToPrefix(path,firstLabel, secondLabel);
+					
+					System.out.print(second.toString() + ": " + getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState));
 					if (shortestPrefixes.containsKey(second.toString())) {
 						if ((shortestPrefixes.get(second.toString())).size()>(temp.size())) {     //??all the shortest equal-length prefixes for an event shall be stored as there might be multiple prefixes possible
 							shortestPrefixes.put(second.toString(), temp);
@@ -442,7 +717,7 @@ public class LocalModelStructure {
 				 String label = iteratorInner.next();
 				 if (label.contains("tau")) {
 					 iteratorInner.remove();
-				      }					 
+				 }
 			 }
 			
 		}
@@ -494,7 +769,6 @@ public class LocalModelStructure {
 			}
 		}
 	}
-	
 			
 	public ArrayList<String> pathToPrefix(List<DirectFollowingRelation> path,String first, String second) {
 		ArrayList<String> result = new ArrayList<>();
@@ -521,35 +795,7 @@ public class LocalModelStructure {
 		
 	}
 	
-	protected void populateStructureForPrefixAlignment(PluginContext context, Petrinet net, Marking initMarking) throws Exception {
-		// build coverability graph of unfolded net
-				Pair<Petrinet, Marking> unfoldedTotal = PetrinetHelper.unfold(context, net);
-				CoverabilityGraph coverabilityGraphUnfolded = context.tryToFindOrConstructFirstNamedObject(
-						CoverabilityGraph.class,
-						CGGenerator.class.getAnnotation(Plugin.class).name(),
-						null,
-						null,
-						unfoldedTotal.getFirst(),
-						unfoldedTotal.getSecond());				
-				
-				populateCaseStarters(net);
-				populateNonDeterministicActivities(tree);
-				getCCEssentials(net);
-				populateStructure(coverabilityGraphUnfolded);
-				
-				/*if(imputationRevisitWindowSize>0) {
-					// build coverability graphs
-					CoverabilityGraph coverabilityGraph = context.tryToFindOrConstructFirstNamedObject(
-							CoverabilityGraph.class,
-							CGGenerator.class.getAnnotation(Plugin.class).name(),
-							null,
-							null,
-							net,
-							initMarking);
-					
-					populateDirectFollowingRelations(coverabilityGraph);
-				}*/
-	}
+	
 	
 	protected void populateStructure(CoverabilityGraph coverabilityGraphUnfolded) {
 		
@@ -575,11 +821,68 @@ public class LocalModelStructure {
 				}
 			}
 		}
+		/*nonDeterministicPlaces.add("n5");
+		nonDeterministicPlaces.add("n26");
+		nonDeterministicPlaces.add("n13");
+		nonDeterministicPlaces.add("n14");
+		nonDeterministicPlaces.add("n15");
+		nonDeterministicPlaces.add("n16");
+		nonDeterministicPlaces.add("n17");
+		nonDeterministicPlaces.add("n19");
+		nonDeterministicPlaces.add("n22");
+		nonDeterministicPlaces.add("n23");
+		nonDeterministicPlaces.add("n24");
+		nonDeterministicPlaces.add("n25");
+		nonDeterministicPlaces.add("n21");
+		nonDeterministicPlaces.add("n20");
+		
+		nonDeterministicActivities.add("A_FINALIZED");
+		nonDeterministicActivities.add("O_SELECTED_1");
+		nonDeterministicActivities.add("O_SELECTED_2");
+		nonDeterministicActivities.add("O_CREATED");
+		nonDeterministicActivities.add("O_SENT");
+		nonDeterministicActivities.add("O_SENT_BACK_1");
+		nonDeterministicActivities.add("O_SENT_BACK_2");
+		nonDeterministicActivities.add("O_CANCELLED_2");
+		nonDeterministicActivities.add("A_CANCELLED_1");
+		nonDeterministicActivities.add("A_DECLINED_4");
+		nonDeterministicActivities.add("O_ACCEPTED");
+		nonDeterministicActivities.add("O_DECLINED");
+		nonDeterministicActivities.add("O_CANCELLED_1");
+		nonDeterministicActivities.add("A_APPROVED");*/
+		
+		
 		System.out.println(nonDeterministicActivities.toString());
 		/*for(Node node : NDNodes) {
 			nonDeterministicActivities.add(node.getName());
 			System.out.println(node.getName());
 		}*/
+	}
+	public static ArrayList<String> getShortestPath(ShortestPathInfo<State, Transition> calculator, State from, State to) {
+		List<DirectFollowingRelation> result = new LinkedList<DirectFollowingRelation>();
+		ArrayList<String> trace = new ArrayList<>();
+		State prev = null;
+		Transition prevTransition = null;
+		System.out.println("///////////////////////////////////////////////////////////////////////////////////////////");
+		System.out.println(calculator.getShortestPath(from, to));
+		for (State s : calculator.getShortestPath(from, to)) {
+			if (prev != null) {
+				Transition t = TSUtils.getConnection(prev, s);
+				if (t != null && !TSUtils.isTransitionTau(t)) {
+					if (prevTransition != null) {
+						DirectFollowingRelation newRel = new DirectFollowingRelation(prevTransition.getLabel(), t.getLabel());
+						//System.out.print(prevTransition.getLabel() + ",");
+						trace.add(prevTransition.getLabel());
+						if (!result.contains(newRel)) {
+							result.add(newRel);
+						}
+					}
+					prevTransition = t;
+				}
+			}
+			prev = s;
+		}
+		return trace;
 	}
 	
 	/*public void printNicely(PrintStream out) {

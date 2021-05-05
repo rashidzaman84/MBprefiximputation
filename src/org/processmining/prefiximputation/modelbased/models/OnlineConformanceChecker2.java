@@ -13,6 +13,7 @@ import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.graphbased.directed.petrinet.elements.Transition;
 import org.processmining.models.semantics.petrinet.Marking;
 import org.processmining.onlineconformance.algorithms.IncrementalReplayer;
+import org.processmining.onlineconformance.models.ModelSemantics;
 import org.processmining.onlineconformance.models.ModelSemanticsPetrinet;
 import org.processmining.onlineconformance.models.PartialAlignment;
 import org.processmining.onlineconformance.parameters.IncrementalRevBasedReplayerParametersImpl;
@@ -42,6 +43,7 @@ public class OnlineConformanceChecker2 {
 	private final IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition> parameters;
 	public IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer;
 	//private IncrementalReplayResult<String, String, Transition, Marking, PartialAlignment<String, Transition, Marking>> pluginResult;
+	public ModelSemanticsPetrinet<Marking> modelSemantics;
 	
 	
 	/*public OnlineConformanceChecker2() {		
@@ -122,7 +124,7 @@ public class OnlineConformanceChecker2 {
 	public void /*<A extends PartialAlignment<String, Transition, Marking>> IncrementalReplayResult<String, String, Transition, Marking, A>*/ applyGeneric(
 			/*final Petrinet net, final Marking initialMarking, final Marking finalMarking,
 			final IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition> parameters, final XTrace trace*/) {
-		ModelSemanticsPetrinet<Marking> modelSemantics = ModelSemanticsPetrinet.Factory.construct(net);
+		/*ModelSemanticsPetrinet<Marking> */modelSemantics = ModelSemanticsPetrinet.Factory.construct(net);
 		Map<Transition, String> labelsInPN = new HashMap<Transition, String>();
 		for (Transition t : net.getTransitions()) {
 			if (!t.isInvisible()) {
@@ -186,6 +188,9 @@ public class OnlineConformanceChecker2 {
 		System.out.println("For Trace size: " + trace.size() + " the trace cost is: " + partialAlignment.getCost());
 		this.conformanceValue = partialAlignment.getCost();
 		return pluginResult;*/
+	}
+	public ModelSemantics getModelSemantics() {
+		return modelSemantics;
 	}
 	
 	/*public void reset() {

@@ -16,6 +16,7 @@ import org.processmining.prefiximputation.inventory.NullConfiguration;
  * @author Andrea Burattin
  */
 public class LocalConformanceTracker extends HashMap<String, LocalConformanceStatus> {
+//ublic class LocalConformanceTracker extends LinkedHashMap<String, LocalConformanceStatus> {	
 
 	private static final long serialVersionUID = -7453522111588238137L;
 

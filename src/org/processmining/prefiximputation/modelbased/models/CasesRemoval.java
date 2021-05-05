@@ -2,8 +2,10 @@ package org.processmining.prefiximputation.modelbased.models;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+
+import org.processmining.models.semantics.petrinet.Marking;
 
 public class CasesRemoval {
 	protected LocalModelStructure lms;
@@ -43,7 +45,7 @@ public class CasesRemoval {
 		//Condition3: if the current marking is in Non-deterministic region?
 		//Condition4: if the imputation is true?
 		//Condition5: The trace length is the shortest
-		HashMap<String, Integer> casesDeletionPriority = new HashMap<String, Integer>();
+		LinkedHashMap<String, Integer> casesDeletionPriority = new LinkedHashMap<String, Integer>();
 		//String caseIdToBeRemoved=null;
 		//Double conformanceScore=Double.MIN_VALUE;
 		//Boolean isTraceSameAsShortestPath=false;
@@ -52,40 +54,58 @@ public class CasesRemoval {
 		//Integer imputationSize = 0;		
 		String caseIdToBeRemoved=null;
 		Integer minTraceLength = Integer.MAX_VALUE;
+		Integer maxTraceLength = Integer.MIN_VALUE;
 		//Boolean firstTrace=true;
 		
 		for (Map.Entry<String, LocalConformanceStatus> entry : lct.entrySet()) {
 		    String caseId = entry.getKey();
+		    if(caseId.equals(/*"199098""199071""179841""198113"*/"173757") ) {
+				//System.out.println("Found!!!!");
+			}
 		    LocalConformanceStatus lcs = entry.getValue();
-		    ArrayList<String> trace=lcs.trace;
+		    ArrayList<String> trace=lcs.traceModelAlphabet;
 		    if(trace.size()==1) {		//by-default conformance will be 100% as the single event is a case-starter otherwise would have been imputed
 		    	return caseId;
 		    }else if (lcs.currentImputationSize == (trace.size()-1) ) {       //by-default conformance will be 100% as we are imputing conformant prefix
-		    	if(!lcs.isInNonDeterministicRegion) {
+		    	if(!lcs.isTraceInNonDeterministicRegion) {
 		    		casesDeletionPriority.put(caseId, 1);   //traces with last event in non-ND regions are favored as the orphan event in a ND-region 
 		    	}else {										//can provide an escape for all other events in the ND region
 		    		casesDeletionPriority.put(caseId, 2);
 		    	}
-		    }else if (lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(trace) && !lcs.isInNonDeterministicRegion) {  //may or may not be imputed
+		    }else if (lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(/*trace*/lcs.generateTraceFromAlignment(lcs.OCC2.replayer.getDataStore().get(caseId))) && !lcs.isTraceInNonDeterministicRegion) {  //may or may not be imputed
 		    	casesDeletionPriority.put(caseId, 3);
-		    }else if(lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(trace)){
+		    }else if(lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(/*trace*/lcs.generateTraceFromAlignment(lcs.OCC2.replayer.getDataStore().get(caseId)))){
 		    	casesDeletionPriority.put(caseId, 4);
 		    }/*else if(another scenario) {
 		    	
 		    }*/
 		    
-		    if (trace.size()<minTraceLength) {
+		   if (trace.size()<minTraceLength) {
 		    	caseIdToBeRemoved = caseId;
 		    	minTraceLength = trace.size();
-		    }	    
+		    }
+		    
+		    /*if(trace.size()>maxTraceLength) {
+		    	caseIdToBeRemoved = caseId;
+		    	maxTraceLength = trace.size();
+		    }*/
 		    
 		}
 		
 		 if(!casesDeletionPriority.isEmpty()) {
 			 caseIdToBeRemoved = Collections.min(casesDeletionPriority.entrySet(), Map.Entry.comparingByValue()).getKey();
 		    }	
-				
+			/*System.out.println("SFR:\t" + caseIdToBeRemoved + "\t (" + (casesDeletionPriority.get(caseIdToBeRemoved)==null?null:casesDeletionPriority.get(caseIdToBeRemoved)) + ")\t" + lct.get(caseIdToBeRemoved).traceModelAlphabet +" in marking:\t" 
+		    + fetchMarking(caseIdToBeRemoved));*/
 		return caseIdToBeRemoved;    
+	}
+	
+	private Marking fetchMarking(String caseId) {
+		Marking state = lct.get(caseId).OCC2.replayer.getDataStore().get(caseId).getState().getStateInModel();
+				//.getDataStore().get(caseId);
+				
+		//Marking state = previousAlignment == null ? null : previousAlignment.getState().getStateInModel();
+		return state;
 	}
 	
 	public Boolean isTraceSameAsShortestPath(ArrayList<String> localTrace) {		
@@ -105,18 +125,45 @@ public class CasesRemoval {
 		//str2.addAll(localTrace);
 		//Collections.copy(str2,localTrace);
 		//str2.remove(str2.size() - 1);
+		/*if(lms.processModelAlphabet.contains(localTrace.get((localTrace.size()-1)))) {
+			if(lms.getShortestPrefix(localTrace.get((localTrace.size()-1))).equals(localTrace.subList(0, localTrace.size()-1))) {
+				//>>System.out.println("Same");
+				return true;
+			}else {
+				return false;
+			}
+		}else {
+			ArrayList<String> approxSimilarLabels = lms.getEquivalentModelLabels(localTrace.get((localTrace.size()-1)));
+			for(String key : approxSimilarLabels) {
+				if(lms.getShortestPrefix(key).equals(localTrace.subList(0, localTrace.size()-1))){
+					return true;
+				}
+			}
+			return false;
+		}*/
+		
+		/*System.out.println("-----------------------------------------");
+		System.out.println("The trace is: " + localTrace);
+		System.out.println("The last event in this trace is: " + localTrace.get((localTrace.size()-1)));
+		System.out.println("The shortest prefix for this last event is: " + lms.getShortestPrefix(localTrace.get((localTrace.size()-1))));
+		System.out.println("The actual prefix of the last event is: " + localTrace.subList(0, localTrace.size()-1));*/
 		if(lms.getShortestPrefix(localTrace.get((localTrace.size()-1))).equals(localTrace.subList(0, localTrace.size()-1))) {
-			//>>System.out.println("Same");
+			//System.out.println("Same");
 			return true;
-		} 
+		}else {
+			return false;
+		}
+		 
 		/*if(str1.equals(str2)) {
 			System.out.println("Same");
 			return true;
 		}*/
 			
 		//>>System.out.println("Not same");		
-		return false;		
+		//return false;		
 	}
+	
+	
 	
 	/*public Boolean isTraceSameAsShortestPath(XTrace trace) {		
 		boolean same =true;
