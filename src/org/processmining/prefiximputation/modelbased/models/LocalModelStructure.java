@@ -1,5 +1,6 @@
 package org.processmining.prefiximputation.modelbased.models;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -18,6 +19,8 @@ import org.processmining.contexts.uitopia.UIPluginContext;
 import org.processmining.framework.plugin.PluginContext;
 import org.processmining.framework.plugin.annotations.Plugin;
 import org.processmining.framework.util.Pair;
+import org.processmining.log.csv.CSVFile;
+import org.processmining.log.csvimport.exception.CSVConversionException;
 import org.processmining.models.graphbased.directed.analysis.ShortestPathFactory;
 import org.processmining.models.graphbased.directed.analysis.ShortestPathInfo;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
@@ -88,6 +91,7 @@ public class LocalModelStructure {
 	public HashMap<org.processmining.models.graphbased.directed.petrinet.elements.Transition, Marking> NDEndingTransitionsEnteringMarkings= new HashMap<>();
 	public HashMap<String, ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> executionSequences = new HashMap<>();
 	public HashMap<String, NonDeterministicRegion> NDRegions = new HashMap<>();
+	public CSVFile modelStreamMapping=null;
 	
 	
 	public HashMap<String, NonDeterministicRegion> getNDRegionsCopy() {		
@@ -145,6 +149,23 @@ public class LocalModelStructure {
 		if(NullConfiguration.allowedDuplicateLabelApproximation) {
 			this.spareReplayer = new OnlineConformanceChecker2(this, false, null);
 		}
+	}
+	
+	public LocalModelStructure(UIPluginContext context, Petrinet net, Marking initMarking, /*ProcessTree tree,*/ String ccAlgoChoice, int imputationRevisitWindowSize, CSVFile modelStreamMapping) throws Exception {
+		this.net = net;
+		//this.tree = tree;
+		this.initialMarking = getInitialMarking(net);
+		this.finalMarking = getFinalMarking(net);
+		//this.eventClasses = getEventClasses(net);
+		this.imputationRevisitWindowSize = imputationRevisitWindowSize;
+		this.ccAlgoChoice = ccAlgoChoice;
+		this.modelStreamMapping = modelStreamMapping;
+		//this.mapping = getEventTransitionMapping(net,this.eventClasses);
+		populateAppropriateStructure(context, net, initMarking, ccAlgoChoice);
+		if(NullConfiguration.allowedDuplicateLabelApproximation) {
+			this.spareReplayer = new OnlineConformanceChecker2(this, false, null);
+		}
+		
 	}
 	
 	protected void populateAppropriateStructure(UIPluginContext context, Petrinet net, Marking initMarking, String ccAlgoChoice) throws Exception {
@@ -361,8 +382,8 @@ public class LocalModelStructure {
 		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(net);
 		return getEventClassesOOM.manipulateModel();		
 	}*/
-	private void getCCEssentials(UIPluginContext context, Petrinet net) {
-		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(context, net);
+	private void getCCEssentials(UIPluginContext context, Petrinet net) throws IOException, CSVConversionException {
+		GetEventClassesOutOfModel getEventClassesOOM = new GetEventClassesOutOfModel(context, net, modelStreamMapping);
 		getEventClassesOOM.manipulateModel();
 		this.eventClasses = getEventClassesOOM.getXEventClasses();
 		this.labelsToModelElementsMap = getEventClassesOOM.getLabelsToModelElementsMap();
