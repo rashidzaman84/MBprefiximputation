@@ -1,11 +1,15 @@
 package org.processmining.prefiximputation.modelbased.models;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 
 import org.deckfour.xes.classification.XEventClasses;
 import org.deckfour.xes.classification.XEventClassifier;
@@ -17,6 +21,10 @@ import org.deckfour.xes.info.impl.XLogInfoImpl;
 import org.deckfour.xes.model.XAttributeMap;
 import org.deckfour.xes.model.XEvent;
 import org.processmining.contexts.uitopia.UIPluginContext;
+import org.processmining.log.csv.CSVFile;
+import org.processmining.log.csv.ICSVReader;
+import org.processmining.log.csv.config.CSVConfig;
+import org.processmining.log.csvimport.exception.CSVConversionException;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.graphbased.directed.petrinet.PetrinetEdge;
 import org.processmining.models.graphbased.directed.petrinet.PetrinetGraph;
@@ -45,6 +53,7 @@ public class GetEventClassesOutOfModel {
 	public HashMap<Transition, Marking> NDEndingTransitionsEnteringMarkings= new HashMap<Transition, Marking>();
 	public Transition mainSplitter;
 	public Marking mainSplitterOutMarking;
+	public CSVFile modelStreamMapping=null;
 	
 	private TransitionSystemImpl transitionSystem = null;
 	private UIPluginContext context;
@@ -62,20 +71,22 @@ public class GetEventClassesOutOfModel {
 
 	private Petrinet net;
 	private XEventClasses classes = new XEventClasses(XLogInfoImpl.NAME_CLASSIFIER);
-	public GetEventClassesOutOfModel(UIPluginContext context, Petrinet net) {
+	public GetEventClassesOutOfModel(UIPluginContext context, Petrinet net, CSVFile modelStreamMapping) {
 		this.net = net;
 		this.context = context;
+		this.modelStreamMapping = modelStreamMapping;
 	}
 	
-	public void manipulateModel() {
+	public void manipulateModel() throws IOException, CSVConversionException {
 		//XEventClasses classes = new XEventClasses(XLogInfoImpl.NAME_CLASSIFIER);
 		//Set<XEventClass> eventClasses = new HashSet<XEventClass>();
 		//XLog atts = xesFactory.createLog();
 		extractClasses();
-		mapping();
+		//mapping();
+		mapping2();
 		setMovesCosts();		
 		extractModelAplhabet();		
-		//extractNDRegions();
+		extractNDRegions();
 		/*for(Transition t: net.getTransitions()) {
 			String eventLabel = t.getLabel();
 			if(!t.isInvisible() || !eventLabel.equals("Tau")) {
@@ -431,7 +442,55 @@ public class GetEventClassesOutOfModel {
 		return xesFactory.createEvent(atts);
 	}
 	
-	private void mapping() {
+	private void mapping2() throws IOException, CSVConversionException {
+		if(Objects.isNull(modelStreamMapping)) {
+			for (Transition t : net.getTransitions()) {
+				if (!t.isInvisible()) {
+					String label = t.getLabel();
+					modelElementsToLabelMap.put(t, label);
+					if (!labelsToModelElementsMap.containsKey(label)) {
+						Collection collection = new ArrayList<Transition>();
+						collection.add(t);
+						labelsToModelElementsMap.put(label, collection);
+						//labelsToModelElementsMap.put(label, Collections.singleton(t));
+					} else {
+						labelsToModelElementsMap.get(label).add(t);
+					}
+				}
+			}
+		}else {			
+			String[] nextLine= new String[2];
+			CSVConfig importConfig = new CSVConfig(modelStreamMapping);
+			try (ICSVReader reader = modelStreamMapping.createReader(importConfig)) {
+				while ((nextLine = reader.readNext()) != null) {
+					for(Transition t: net.getTransitions()) {
+						if(t.getLabel().equals(nextLine[0])) {
+							modelElementsToLabelMap.put(t, nextLine[1]);
+						}
+					}
+				}
+		}
+			
+			HashSet<String> distinctValues = new HashSet<>();
+			for(Entry<Transition, String> entry: modelElementsToLabelMap.entrySet()) {
+				distinctValues.add(entry.getValue());
+			}
+			
+			for(String value : distinctValues) {
+				Collection<Transition> temp = new ArrayList<Transition>();
+				for(Entry<Transition, String> entry: modelElementsToLabelMap.entrySet()) {
+					if(entry.getValue().equals(value)) {
+						temp.add(entry.getKey());
+					}
+				}
+				labelsToModelElementsMap.put(value, temp);
+			}			
+		}
+			
+	}
+	
+	private void mapping() {	
+		
 		if(NullConfiguration.isMappingAutomatic) {
 			for (Transition t : net.getTransitions()) {
 				if (!t.isInvisible()) {
@@ -1053,6 +1112,7 @@ public class GetEventClassesOutOfModel {
 				//labelMoveCosts.put("A_FINALIZED", (short) 1);
 			}
 		}
+		//labelMoveCosts.put("dummy", (short) 1);
 	}
 	
 	private void extractModelAplhabet() {
@@ -1078,25 +1138,31 @@ public class GetEventClassesOutOfModel {
 		Transition mainSplitter;*/
 		mainSplitterOutMarking = new Marking();
 		
-		/*for(Transition t: net.getTransitions()) {
-			int noofchildren = 0;
+		for(Transition t: net.getTransitions()) {
+			int noOfChildren = 0;
 			for(PetrinetEdge p : net.getEdges()) {
 				if(p.getSource().equals(t)) {
-					noofchildren++;
+					noOfChildren++;
 					//System.out.println(t.getLabel());
 					//System.out.println(p.getTarget());
 				}
 			}
-			if(noofchildren>1) {
+			if(noOfChildren>1) {
 				NDStarterTransitions.add(t);
 			}
 			
 			//System.out.println(t + ", " + t.getVisibleSuccessors());
 			//System.out.println(t + "  has parent: " + t.getParent());
 		}
-		System.out.println(NDStarterTransitions);*/
+		//System.out.println(NDStarterTransitions);
+		if(NDStarterTransitions.isEmpty()) {
+			return;
+		}else if(NDStarterTransitions.size()==1) {
+			mainSplitter = NDStarterTransitions.get(0);
+		}else {
+			mainSplitter = getFirstSplitter(modelSemantics,initialMarking, net);			
+		}
 		
-		mainSplitter = getFirstSplitter(modelSemantics,initialMarking, net);
 		for(PetrinetEdge p : net.getEdges()) {
 			if((p.getSource() instanceof Transition) && p.getSource().equals(mainSplitter)) {
 				
@@ -1146,6 +1212,8 @@ public class GetEventClassesOutOfModel {
 			NDEndingTransitionsEnteringMarkings.put(t,temp);
 			
 		}
+		
+		
 		
 		System.out.println(NDEndingTransitionsEnteringMarkings);
 		

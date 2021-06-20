@@ -242,7 +242,7 @@ public class LocalConformanceStatus {
 			
 			if(isTraceInNonDeterministicRegion) {
 				ArrayList<Transition> mappedLabels = new ArrayList<Transition>(); 
-				mappedLabels.addAll(lms.labelsToModelElementsMap.get(newEventName));  ///??????
+				mappedLabels.addAll(lms.labelsToModelElementsMap.get(newEventName));  ///?????? Sometimes 
 				
 				
 				
@@ -321,12 +321,14 @@ public class LocalConformanceStatus {
 				//If the observed event is not a punctuation and it does not belongs to one of the activated branch
 				// but rather un-activated branch(es) then we need to impute the prefix of the longest branch till this event and 
 				//mark the branch(es) as activated
+				boolean found = false;
 				int maxIndex = Integer.MIN_VALUE; 
 				ArrayList<String> toBeImputed = new ArrayList<>();
 				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
 					for(branch eentry: entry.getValue().getSymmetry()) {
 						if(eentry.getBranchExecution().contains(newEventName)) {
 							eentry.activated = true;
+							found = true;
 							int index = eentry.getBranchExecution().indexOf(newEventName);
 							if (index> maxIndex) {
 								maxIndex = index;
@@ -336,12 +338,21 @@ public class LocalConformanceStatus {
 						}
 					}
 				}
-				traceModelAlphabet.addAll(toBeImputed);
-				traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
-				OCC2 = new OnlineConformanceChecker2(this.lms, false, traceStreamAlphabet.get(traceStreamAlphabet.size()-1));
-				batchCCPrefAlign(traceStreamAlphabet);
-				refreshUpdateTime();
-				return last;
+				if(found) {
+					traceModelAlphabet.addAll(toBeImputed);
+					traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+					OCC2 = new OnlineConformanceChecker2(this.lms, false, traceStreamAlphabet.get(traceStreamAlphabet.size()-1));
+					batchCCPrefAlign(traceStreamAlphabet);
+					refreshUpdateTime();
+					return last;
+				}else {
+					traceModelAlphabet.add(newEventName); //the newly arrived event is added to the existing trace history
+					traceStreamAlphabet.add(newEventName);
+					last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+					refreshUpdateTime();
+					return last;
+				}
+				
 					/*if(foundRelevantNDRegion) {
 						for(Entry<Place, branch> eentry: entry.getValue().getSymmetry().entrySet()) {
 							if(eentry.getValue().getBranchExecution().contains(newEventName)) {

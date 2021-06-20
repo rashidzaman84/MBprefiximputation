@@ -1,12 +1,12 @@
 package org.processmining.prefiximputation.inventory;
 
 public class NullConfiguration {
-	public static boolean isExperiment = true;
+	public static boolean isExperiment = false;
 	//public static boolean isExperiment = false;
 	public static boolean displayFineStats = false;
 	public static boolean allowedDuplicateLabelApproximation = false;
 	public static double similarityThreshold = 0.66;
-	public static boolean isMappingAutomatic = true;
+	public static boolean isMappingAutomatic = false;
 	public static String eventlog = "BPI12AplusO";
 	//public static String eventlog = "RoadTraffic";
 	public static String logToStream ="timestamps";
@@ -14,6 +14,8 @@ public class NullConfiguration {
 	public static int maxParallelRunningCases = 1000;
 	//public static int maxCasesToStore = Integer.MAX_VALUE;	
 	public static int maxCasesToStore = 100;
+	//public static int maxForgettingsToStore = Integer.MAX_VALUE;
+	public static int maxForgettingsToStore = 100;
 	
 	
 	String petriNetFileName[] = {"CCC19 - Model PN_modified.pnml", "Model_A.pnml", "Model_O.pnml", "Model_AO.pnml", "Traffic Fine Management_.pnml","a22f0.pnml"};

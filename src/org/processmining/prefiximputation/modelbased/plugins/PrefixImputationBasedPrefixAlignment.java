@@ -25,6 +25,7 @@ import org.processmining.framework.plugin.PluginContext;
 import org.processmining.framework.plugin.annotations.Plugin;
 import org.processmining.framework.plugin.annotations.PluginCategory;
 import org.processmining.framework.plugin.annotations.PluginVariant;
+import org.processmining.log.csv.CSVFile;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.graphbased.directed.petrinet.PetrinetGraph;
 import org.processmining.models.graphbased.directed.petrinet.elements.Place;
@@ -53,7 +54,7 @@ import gnu.trove.map.hash.TObjectDoubleHashMap;
 	returnLabels = { "Online conformance checking - with Model-based Prefix Imputation" },
 	returnTypes = { /*LocalOnlineConformanceConfiguration.class*/ NullConfiguration.class },
 	parameterLabels = {
-			"Model", "Event Data"/*, "Marking", "Process Tree", "Event Data"*/
+			"Model", "Event Data", "Model Stream Mapping"/*, "Marking", "Process Tree", "Event Data"*/
 	},
 	categories = PluginCategory.Analytics,
 	help = "This plugin computes the conformance of a given model with respect to an event streams.",
@@ -61,14 +62,32 @@ import gnu.trove.map.hash.TObjectDoubleHashMap;
 public class PrefixImputationBasedPrefixAlignment {
 	//public static XFactory xesFactory = new XFactoryBufferedImpl();
 	protected Runtime runtime = Runtime.getRuntime();
-	@PluginVariant(requiredParameterLabels = { 0, 1/*, 1, 2, 3 */})
+	@PluginVariant(variantLabel = "Online Conformance - With Model-Based Prefix Imputation - S3",requiredParameterLabels = { 0, 1/*, 1, 2, 3 */})
 	@UITopiaVariant(
 		author = "R. Zaman",
 		email = "r.zaman@tue.nl",
 		affiliation = "TUe")
 	
 	public /*LocalOnlineConformanceConfiguration*/ NullConfiguration plugin(UIPluginContext context, Petrinet net, XLog log/*, Marking initMarking, ProcessTree tree, XLog log*/) throws Exception {
-	//public static void main(String[] args) throws Exception {
+		Marking initialMarking = getInitialMarking(net);
+		LocalModelStructure lms = new LocalModelStructure(context, net, /*initMarking*/initialMarking, /*tree2,*/ "Prefix Alignment", 0); 				
+		
+		return process(lms, log);
+	}
+	
+	@PluginVariant(variantLabel = "Online Conformance - With Model-Based Prefix Imputation - S3",requiredParameterLabels = { 0, 1, 2})
+	@UITopiaVariant(
+		author = "R. Zaman",
+		email = "r.zaman@tue.nl",
+		affiliation = "TUe")
+	
+	public /*LocalOnlineConformanceConfiguration*/ NullConfiguration plugin(UIPluginContext context, Petrinet net, XLog log, CSVFile modelStreamMapping/*, Marking initMarking, ProcessTree tree, XLog log*/) throws Exception {
+		Marking initialMarking = getInitialMarking(net);
+		LocalModelStructure lms = new LocalModelStructure(context, net, /*initMarking*/initialMarking, /*tree2,*/ "Prefix Alignment", 0, modelStreamMapping); 				
+		
+		return process(lms, log);
+	}
+		public NullConfiguration process(LocalModelStructure lms, XLog log) throws Exception {
 		/*LocalModelStructure lms = new LocalModelStructure(context, net, initMarking, tree, "Prefix Alignment", 0); 				
 		LocalConformanceTracker tracker = new LocalConformanceTracker(lms, 100);*/
 		///--------------
@@ -81,7 +100,7 @@ public class PrefixImputationBasedPrefixAlignment {
 		//String logFile = NullConfiguration.eventLogFilePath;
 		
 		//Petrinet net = constructNet(petrinetFile);
-		Marking initialMarking = getInitialMarking(net);
+		//Marking initialMarking = getInitialMarking(net);
 		//Marking finalMarking = getFinalMarking(net);
 		//XLog log;
 		//XEventClassifier eventClassifier;
@@ -120,7 +139,7 @@ public class PrefixImputationBasedPrefixAlignment {
         double traceCost = 0.0;
         double completeLogCost = 0.0;
 		
-		LocalModelStructure lms = new LocalModelStructure(context, net, /*initMarking*/initialMarking, /*tree2,*/ "Prefix Alignment", 0); 				
+		//LocalModelStructure lms = new LocalModelStructure(context, net, /*initMarking*/initialMarking, /*tree2,*/ "Prefix Alignment", 0); 				
 		LocalConformanceTracker tracker = new LocalConformanceTracker(lms, /*maxCasesToStore*/NullConfiguration.maxCasesToStore);
 		////////////////////-------------
 		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = new ArrayList<Triplet<String,String,Date>>();
@@ -164,7 +183,7 @@ public class PrefixImputationBasedPrefixAlignment {
         	caseId = entry.getValue0();
 			event = entry.getValue1();
 			eventTimeStamp = entry.getValue2();
-			if(caseId.equals(/*"199098""199071""179841""198113"*/"N79977") ) {
+			if(caseId.equals(/*"199098""199071""179841""198113"*/"173751") ) {
 				System.out.println("Found!!!!");
 			}
 			//----------------Check if the window is changing. If yes, then report the statistics of the current window and purge the current window-specific data structures
@@ -377,6 +396,8 @@ public class PrefixImputationBasedPrefixAlignment {
 		System.out.println("And the grand sum is " + sum);
 		return new NullConfiguration();
 	}
+	
+
 	
 	/*private static ArrayList<Triplet<String,String,Date>> sortEventLogByDate2(XLog log){
 		int index = 0;
