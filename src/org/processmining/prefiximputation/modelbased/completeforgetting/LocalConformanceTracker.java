@@ -1,4 +1,4 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,10 +26,12 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 	protected LocalModelStructure lms;
 	//protected int noOfCasesInMemory;
 	protected int maxCasesToStore;
-	public String caseToRemove;
+	public String caseToForget;
 	public boolean isTideStarted = false;
-	public boolean removalFlag = false;
-	public int noOfCasesDeleted = 0;
+	public boolean forgettingFlag = false;
+	public int noOfForgottenCases = 0;
+	public HashMap<String, ArrayList<PartialAlignment<String, Transition, Marking>>> partialAlignmentRecord; //=new HashMap<String , ArrayList<PartialAlignment<String, Transition, Marking>>>();
+
 	//protected String ccAlgoChoice;
 	/*protected int statesToStore;
 	protected int costNoActivity;
@@ -39,7 +41,6 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 	//private String activityName;
 	//public static XFactory xesFactory = new XFactoryBufferedImpl();
 	//public static XExtensionManager xesExtensionManager = XExtensionManager.instance();
-	public HashMap<String, ArrayList<PartialAlignment<String, Transition, Marking>>> partialAlignmentRecord; //=new HashMap<String , ArrayList<PartialAlignment<String, Transition, Marking>>>();
 
 	public LocalConformanceTracker(LocalModelStructure lms, int maxCasesToStore) {
 		//this.caseIdHistory = new HashMap<String, Integer>();
@@ -79,10 +80,7 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 	 * @param caseId
 	 * @param newEventName
 	 * @return
-	 */
-	
-	
-	
+	 */	
 	
 	public OnlineConformanceScore replayEvent(String caseId, String newEventName) {
 		OnlineConformanceScore currentScore;
@@ -98,30 +96,30 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 				// The event store is full to the allowed extent, we need to devise smart strategies to remove cases:
 				// (i)with compliance score of 1, (ii)the cases out of non-deterministic region
 				//(iii) with the least imputation score i.e., least no. of imputed transitions OR a hybrid of these.
-				CasesRemoval casesRemoval = new CasesRemoval(lms, this );               //We can calculate a deletion candidacy score for relevant cases on arrival of every new event but that will
-				/*String toRemove*/ caseToRemove = casesRemoval.selectCaseToBeRemoved();              //introduce unnecessary processing overhead as we may need to delete cases once in a while.				
+				ForgettingCases forgettingCases = new ForgettingCases(lms, this);               //We can calculate a deletion candidacy score for relevant cases on arrival of every new event but that will
+				caseToForget = forgettingCases.selectCaseToBeForgotten();              //introduce unnecessary processing overhead as we may need to delete cases once in a while.				
 				//>>System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!The memory is full as there are: " + size() + " cases in memory. Therefore, this case is removed, Id: " + toRemove + " and trace is: " + get(toRemove).trace  );
 				isTideStarted = true;
-				removalFlag = true;
-				noOfCasesDeleted++;
+				forgettingFlag = true;
+				noOfForgottenCases++;
 				if(NullConfiguration.displayFineStats) {
 					System.out.println("Tide started at: " + caseId + ", " + newEventName );
-					System.out.println("And the case removed was: " + caseToRemove + " ------ " + get(caseToRemove).OCC2.replayer.getDataStore().get(caseToRemove));
+					System.out.println("And the case removed was: " + caseToForget + " ------ " + get(caseToForget).OCC2.replayer.getDataStore().get(caseToForget));
 				}
-				PartialAlignment partialAlignment = get(caseToRemove).OCC2.replayer.getDataStore().get(caseToRemove);
-				if(partialAlignmentRecord.containsKey(caseToRemove)) {
-					partialAlignmentRecord.get(caseToRemove).add(partialAlignment);
+				PartialAlignment partialAlignment = get(caseToForget).OCC2.replayer.getDataStore().get(caseToForget);
+				if(partialAlignmentRecord.containsKey(caseToForget)) {
+					partialAlignmentRecord.get(caseToForget).add(partialAlignment);
 				}else {				
-					partialAlignmentRecord.put(caseToRemove, new ArrayList<PartialAlignment<String, Transition, Marking>>());
-					partialAlignmentRecord.get(caseToRemove).add(partialAlignment);
+					partialAlignmentRecord.put(caseToForget, new ArrayList<PartialAlignment<String, Transition, Marking>>());
+					partialAlignmentRecord.get(caseToForget).add(partialAlignment);
 				}
-				this.remove(caseToRemove); //Removed the LocalConformanceTracker HashMap entry corresponding to the toRemove case ID
+				this.remove(caseToForget); //Removed the LocalConformanceTracker HashMap entry corresponding to the toRemove case ID
 			}			
 			
 			// now we can perform the replay
 			LocalConformanceStatus lcs = new LocalConformanceStatus(lms, caseId);
 			//currentScore = lcs.replayTrace(newEventName, tr, true );
-			currentScore = lcs.replayTrace(newEventName,true );
+			currentScore = lcs.replayTrace(newEventName,true);
 			put(caseId, lcs);
 			
 		}
@@ -131,12 +129,6 @@ public class LocalConformanceTracker extends HashMap<String, LocalConformanceSta
 	public Set<String> getHandledCases() {
 		return keySet();
 	}
-	
-	/*public Queue<String> getCasesInMemory(){
-		Queue<String> casesInMemory = new LinkedList<>();
-		casesInMemory.addAll(keySet());
-		return casesInMemory;
-	}*/
 	
 	public int getNoOfCasesInMemory() {
 		return size();

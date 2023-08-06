@@ -35,10 +35,9 @@ import org.processmining.models.semantics.petrinet.Marking;
 import org.processmining.onlineconformance.models.Move;
 import org.processmining.onlineconformance.models.PartialAlignment;
 import org.processmining.prefiximputation.inventory.NullConfiguration;
-import org.processmining.prefiximputation.modelbased.models.LocalConformanceStatus;
-import org.processmining.prefiximputation.modelbased.models.LocalConformanceTracker;
-//import org.processmining.streamconformance.local.model.LocalModelStructure;
-import org.processmining.prefiximputation.modelbased.models.LocalModelStructure;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalConformanceStatus;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalConformanceTracker;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalModelStructure;
 import org.processmining.prefiximputation.tests.ParallelCasesBasedLogToStreamConverter;
 import org.processmining.prefiximputation.tests.TimeStampsBasedLogToStreamConverter;
 import org.processmining.processtree.ProcessTree;
@@ -145,7 +144,7 @@ public class PrefixImputationBasedPrefixAlignment {
 		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = new ArrayList<Triplet<String,String,Date>>();
 		
 		if(NullConfiguration.logToStream.equals("timestamps")) {
-			eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate2(log);
+			eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate(log);
 		}else if (NullConfiguration.logToStream.equals("parallelRunningCases")) {
 			eventLogSortedByDate = ParallelCasesBasedLogToStreamConverter.logToStream(log, NullConfiguration.maxParallelRunningCases);
 		}		
@@ -183,7 +182,7 @@ public class PrefixImputationBasedPrefixAlignment {
         	caseId = entry.getValue0();
 			event = entry.getValue1();
 			eventTimeStamp = entry.getValue2();
-			if(caseId.equals(/*"199098""199071""179841""198113"*/"173751") ) {
+			if(caseId.equals(/*"199098""199071""179841""198113"*/"N21192") ) {
 				System.out.println("Found!!!!");
 			}
 			//----------------Check if the window is changing. If yes, then report the statistics of the current window and purge the current window-specific data structures
@@ -229,6 +228,7 @@ public class PrefixImputationBasedPrefixAlignment {
 			//------conformance checking of the current observed event..............
 			traceCost = tracker.replayEvent(caseId, event).getTraceCost();
 			PartialAlignment partialAlignmentForCurrentEvent = tracker.get(caseId).OCC2.replayer.getDataStore().get(caseId);
+			//System.out.println(StatesCalculator.getStartState(partialAlignmentForCurrentEvent));
 			if(alignmentsLife.containsKey(caseId)) {
 				alignmentsLife.get(caseId).add(partialAlignmentForCurrentEvent);
 				alignmentsLifeScore.get(caseId).add(partialAlignmentForCurrentEvent.getCost());
@@ -257,11 +257,11 @@ public class PrefixImputationBasedPrefixAlignment {
 			/*if(tracker.getHandledCases().contains(caseId) replayer.getDataStore().containsKey(caseId)) {
 				;														
 			}else*/ 
-			if (tracker.removalFlag == true) {				
-				costPerTraceCummulative.add(costPerTraceCurrentWindow.get(tracker.caseToRemove));
+			if (tracker.forgettingFlag == true) {				
+				costPerTraceCummulative.add(costPerTraceCurrentWindow.get(tracker.caseToForget));
 				//costPerTraceCurrentWindow.remove(tracker.caseToRemove);
 				//nonConformantCasesCurrentWindow.remove(tracker.caseToRemove);
-				tracker.removalFlag = false;
+				tracker.forgettingFlag = false;
 				//System.out.println("And the case removed was: " + tracker.caseToRemove );
 			}
 			

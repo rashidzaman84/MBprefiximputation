@@ -1,4 +1,4 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
 
 import java.io.Serializable;

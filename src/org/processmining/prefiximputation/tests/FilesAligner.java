@@ -14,7 +14,9 @@ public class FilesAligner {
 		List<Pair<String, String>> firstFile = new ArrayList<Pair<String, String>>();
 		List<Pair<String, String>> unorderedSecondFile = new ArrayList<Pair<String, String>>();
 		List<Pair<String, String>> orderedSecondFile = new ArrayList<Pair<String, String>>();
-		BufferedReader br = new BufferedReader(new FileReader("D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Process Models BPI 2012 from Boudewijn\\Conventional Alignment Output.txt"));
+		//BufferedReader br = new BufferedReader(new FileReader("D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Process Models BPI 2012 from Boudewijn\\Conventional Alignment Output.txt"));
+		BufferedReader br = new BufferedReader(new FileReader("D:\\\\Research Work\\\\latest\\\\Streams\\\\Rashid Prefix Alignment\\\\Scenario 3\\\\PROM A-Star prefix Alignment all traces_ASCENDING COSTS.txt"));
+
 		String line = null;
 
 		while ((line = br.readLine()) != null) {
@@ -27,7 +29,9 @@ public class FilesAligner {
 		}
 		br.close();
 		
-		br = new BufferedReader(new FileReader("D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Process Models BPI 2012 from Boudewijn\\Unconstrained Prefix Alignment.txt"));
+		//br = new BufferedReader(new FileReader("D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Process Models BPI 2012 from Boudewijn\\Unconstrained Prefix Alignment.txt"));
+		br = new BufferedReader(new FileReader("D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Scenario 3\\Imputation based Prefix Alignment All Traces.txt"));
+
 		line = null;
 		while ((line = br.readLine()) != null) {
 			  String[] values = line.split("\\t");

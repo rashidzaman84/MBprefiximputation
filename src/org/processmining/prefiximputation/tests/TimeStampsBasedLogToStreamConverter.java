@@ -23,12 +23,12 @@ import com.google.common.collect.Ordering;
 
 public class TimeStampsBasedLogToStreamConverter {
 	
-	public static ArrayList<Triplet<String,String,Date>> sortEventLogByDate2(XLog log){
+	public static ArrayList<Triplet<String,String,Date>> sortEventLogByDate(XLog log){
 		int index = 0;
 		List<Triplet<String,String,Date>> eventsStream = new ArrayList<Triplet<String,String,Date>>();
 		for (XTrace t : log) {
-			for(XEvent e: t) {
-				String caseId = XConceptExtension.instance().extractName(t);
+			String caseId = XConceptExtension.instance().extractName(t);
+			for(XEvent e: t) {				
 				String newEventName = XConceptExtension.instance().extractName(e);
 				//Pair<String,String> eventPacket = new Pair<String, String>(caseId, newEventName);
 				Date date = XTimeExtension.instance().extractTimestamp(e);
@@ -86,7 +86,7 @@ public class TimeStampsBasedLogToStreamConverter {
 			e.printStackTrace();
 		}
 		
-		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate2(log);
+		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate(log);
 		checkCorrectness(log, eventLogSortedByDate);
 		
 	}

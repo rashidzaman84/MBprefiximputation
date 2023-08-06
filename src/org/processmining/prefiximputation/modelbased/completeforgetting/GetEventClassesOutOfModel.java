@@ -1,4 +1,4 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -57,6 +57,8 @@ public class GetEventClassesOutOfModel {
 	
 	private TransitionSystemImpl transitionSystem = null;
 	private UIPluginContext context;
+	private Petrinet net;
+	private XEventClasses classes = new XEventClasses(XLogInfoImpl.NAME_CLASSIFIER);
 	
 	/*public ArrayList<String> getNDStarterTransitions() {
 		return NDStarterTransitions;
@@ -69,8 +71,7 @@ public class GetEventClassesOutOfModel {
 	//private ArrayList<String> NDEndingTransitions = new ArrayList<>();
 	
 
-	private Petrinet net;
-	private XEventClasses classes = new XEventClasses(XLogInfoImpl.NAME_CLASSIFIER);
+	
 	public GetEventClassesOutOfModel(UIPluginContext context, Petrinet net, CSVFile modelStreamMapping) {
 		this.net = net;
 		this.context = context;

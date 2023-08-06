@@ -6,7 +6,7 @@ public class NullConfiguration {
 	public static boolean displayFineStats = false;
 	public static boolean allowedDuplicateLabelApproximation = false;
 	public static double similarityThreshold = 0.66;
-	public static boolean isMappingAutomatic = false;
+	public static boolean isMappingAutomatic = true;
 	public static String eventlog = "BPI12AplusO";
 	//public static String eventlog = "RoadTraffic";
 	public static String logToStream ="timestamps";
@@ -28,7 +28,7 @@ public class NullConfiguration {
 			+ "Road_Traffic_Fine_Management_Process.xes", "cpnToolsSimulationLog.mxml", "Scenario1Log.xes", "a22f0n05.xes"};	
 	
 	public static String eventLogFilePath = "D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\"
-			+ "Process Models BPI 2012 from Boudewijn\\A plus O Events.xes";
+			+ "Process Models BPI 2012 from Boudewijn\\A only Events.xes";
 	//cpnToolsSimulationLog.mxml //Only_A_Events.xes //test.mxml
 	String processTreeFileName[] = {"processtree.ptml, AandO_Tree.ptml"};
 	

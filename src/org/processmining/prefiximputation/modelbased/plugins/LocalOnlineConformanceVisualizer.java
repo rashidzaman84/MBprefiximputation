@@ -47,13 +47,9 @@ import org.processmining.contexts.uitopia.annotations.UITopiaVariant;
 import org.processmining.contexts.uitopia.annotations.Visualizer;
 import org.processmining.framework.plugin.annotations.Plugin;
 import org.processmining.operationalsupport.xml.OSXMLConverter;
-//import org.processmining.prefiximputation.inventory.UIColors;
-//import org.processmining.streamconformance.local.model.LocalConformanceStatus;  //
-import org.processmining.prefiximputation.modelbased.models.LocalConformanceStatus;
-//import org.processmining.streamconformance.local.model.LocalConformanceTracker; //
-import org.processmining.prefiximputation.modelbased.models.LocalConformanceTracker;
-//import org.processmining.streamconformance.local.model.OnlineConformanceScore;  //
-import org.processmining.prefiximputation.modelbased.models.OnlineConformanceScore;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalConformanceStatus;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalConformanceTracker;
+import org.processmining.prefiximputation.modelbased.completeforgetting.OnlineConformanceScore;
 import org.processmining.streamconformance.local.plugin.gui.LocalConformanceListEntry;
 import org.processmining.streamconformance.local.plugin.gui.LocalConformanceListEntryRenderer;
 import org.processmining.streamconformance.regions.gui.widgets.ChartVisualizer;

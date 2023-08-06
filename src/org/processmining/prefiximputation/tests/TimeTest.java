@@ -2,6 +2,7 @@ package org.processmining.prefiximputation.tests;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 public class TimeTest {
@@ -32,6 +33,19 @@ public class TimeTest {
 	      } else if(d1.compareTo(d2) == 0) {
 	         System.out.println("Both dates are equal");
 	      }
+	      
+	      ArrayList<Integer> test = new ArrayList<Integer>();
+	      test.add(1);
+	      test.add(2);
+	      test.add(3);
+	      ArrayList<Integer> test2 = new ArrayList<Integer>();
+	      //test2=test;	      
+	      test2.addAll(test);
+	      test2.remove(2);
+	      
+	      System.out.println("+++++++++++++++++++++++++++++++++++++");
+	      System.out.println("test" + test);
+	      System.out.println("test2" + test2);
 
 	}
 

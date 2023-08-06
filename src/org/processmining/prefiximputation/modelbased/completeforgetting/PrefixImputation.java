@@ -1,4 +1,4 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,8 +9,8 @@ import org.processmining.streamconformance.local.model.DirectFollowingRelation;
 
 public class PrefixImputation {
 	protected LocalModelStructure lms;
-	public ArrayList<String> imputedTrace= new ArrayList<String>();
-	public Integer imputationSize;
+	//public ArrayList<String> imputedPrefix= new ArrayList<String>();
+	public int imputationSize = 0;
 	//public ArrayList<String> traceAfterImputation;
 	public boolean imputationRevised=false;
 	public String revisedOrphan;
@@ -37,19 +37,23 @@ public class PrefixImputation {
 	     
 	}*/
 	
-	public /*Pair<XTrace, Integer>*/ void imputePrefix(String newEventName/*, XTrace tr*/){  //sets prefix for imputation and its size
-		if(!imputedTrace.isEmpty()) { //incase of revisiting imputation we need to first remove the old trace
-			imputedTrace.clear();
-		}
+	public /*Pair<XTrace, Integer>*/ ArrayList<String> imputePrefix(String newEventName/*, XTrace tr*/){  //sets prefix for imputation and its size
+		/*if(!imputedPrefix.isEmpty()) { //incase of revisiting imputation we need to first remove the old trace
+			imputedPrefix.clear();
+		}*/
 		ArrayList<String> shortestPrefix = lms.getShortestPrefix(newEventName);
+				
 		if(shortestPrefix != null) {
-			imputedTrace.addAll(shortestPrefix);
+			imputationSize = shortestPrefix.size();
+			shortestPrefix.add(newEventName);
+			return shortestPrefix;
 		}else {
 			System.out.println("No shortest prefix found for the event: " + newEventName);
+			return null;
 		}
 		
 		//imputedTrace = lms.getShortestPrefix(newEventName);
-		imputationSize = imputedTrace.size();
+		
 		//>>System.out.println("The imputed prefix for Orphan event: " + newEventName + " is: " + imputedTrace + " with length of: " + imputationSize);
 		/*for (int i = 0; i<imputationSize;i++) {
 			//System.out.println
@@ -60,7 +64,7 @@ public class PrefixImputation {
 			System.out.println(XConceptExtension.instance().extractName(tr.get(i)));					
         }*/
 		//traceAfterImputation.addAll(imputedPrefix);
-		imputedTrace.add(newEventName);
+		//imputedPrefix.add(newEventName);
 		//>>System.out.println("AND the events in the imputed trace are now: " + imputedTrace);
 		//return new Pair<XTrace, Integer>(tr, imputationSize);
 		

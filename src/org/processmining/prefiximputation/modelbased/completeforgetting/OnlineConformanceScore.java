@@ -1,4 +1,4 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
 /**
  * This class models the score of local online conformance

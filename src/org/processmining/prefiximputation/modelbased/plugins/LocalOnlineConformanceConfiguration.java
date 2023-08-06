@@ -3,8 +3,7 @@ package org.processmining.prefiximputation.modelbased.plugins;
 import java.net.InetAddress;
 
 import org.processmining.framework.annotations.AuthoredType;
-//import org.processmining.streamconformance.local.model.LocalModelStructure;
-import org.processmining.prefiximputation.modelbased.models.LocalModelStructure;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalModelStructure;
 
 @AuthoredType(
 	typeName = "Local Online Conformance Configuration",

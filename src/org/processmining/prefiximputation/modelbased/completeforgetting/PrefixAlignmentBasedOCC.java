@@ -1,14 +1,9 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.deckfour.xes.classification.XEventClasses;
-import org.deckfour.xes.extension.std.XConceptExtension;
-import org.deckfour.xes.model.XTrace;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.graphbased.directed.petrinet.elements.Transition;
 import org.processmining.models.semantics.petrinet.Marking;
@@ -22,7 +17,7 @@ import org.processmining.prefiximputation.inventory.NullConfiguration;
 import gnu.trove.map.TObjectDoubleMap;
 import gnu.trove.map.hash.TObjectDoubleHashMap;
 
-public class OnlineConformanceChecker2 {
+public class PrefixAlignmentBasedOCC {
 	//public static XFactory xesFactory = new XFactoryBufferedImpl();
 	//public static XExtensionManager xesExtensionManager = XExtensionManager.instance();
 	private final Petrinet net;
@@ -30,7 +25,7 @@ public class OnlineConformanceChecker2 {
 	private final Marking finalMarking;
 	private LocalModelStructure lms;
 	private Double traceCost;
-	private XEventClasses classes;
+	//private XEventClasses classes;
 	//public XTrace trace;
 	/*private Map<Transition, String> modelElementsToLabelMap = new HashMap<>();
 	private Map<String, Collection<Transition>> labelsToModelElementsMap = new HashMap<>();*/
@@ -48,16 +43,16 @@ public class OnlineConformanceChecker2 {
 	
 	/*public OnlineConformanceChecker2() {		
 	}*/
-	public OnlineConformanceChecker2(LocalModelStructure lms, Boolean statusND, String eventObserved) {
+	public PrefixAlignmentBasedOCC(LocalModelStructure lms) {
 		this.lms = lms;
 		this.net= this.lms.net;
 		this.initialMarking = this.lms.initialMarking;
 		this.finalMarking = this.lms.finalMarking;
-		this.classes = lms.eventClasses;
+		//this.classes = lms.eventClasses;
 		//this.modelElementsToLabelMap = lms.modelElementsToLabelMap;
 		//this.labelsToModelElementsMap = lms.labelsToModelElementsMap;
 		parameters = new IncrementalRevBasedReplayerParametersImpl<>();
-		initialiseComponents(statusND, eventObserved );
+		initialiseComponents();
 	}
 	/*public OnlineConformanceChecker2(Petrinet net, Marking initialMarking, Marking finalMarking) {
 		this.net = net;
@@ -65,8 +60,8 @@ public class OnlineConformanceChecker2 {
 		this.finalMarking = finalMarking;		
 	}*/
 	
-	public void initialiseComponents(Boolean statusND, String eventObserved) {
-		if(statusND) {
+	public void initialiseComponents() {
+		/*if(statusND) {
 			TObjectDoubleMap<Transition> modelMoveCosts = new TObjectDoubleHashMap<>();
 			modelMoveCosts.putAll(lms.modelMoveCosts);
 			for(String entry: lms.nonDeterministicActivities) {
@@ -82,7 +77,8 @@ public class OnlineConformanceChecker2 {
 			parameters.setModelMoveCosts(modelMoveCosts); //use customised Model and Label move costs w.r.t. ND philosophy
 		}else {			
 			parameters.setModelMoveCosts(lms.modelMoveCosts);
-		}
+		}*/
+		parameters.setModelMoveCosts(lms.modelMoveCosts);
 		parameters.setLabelMoveCosts(lms.labelMoveCosts);
 		//setupLabelMap(net);
 		//setupModelMoveCosts(net);
@@ -250,13 +246,13 @@ public class OnlineConformanceChecker2 {
 			}
 		}
 	}*/
-	private List<String> toStringList(XTrace trace, XEventClasses classes) {
-		List<String> l = new ArrayList<>(trace.size());
-		for (int i = 0; i < trace.size(); i++) {
-			l.add(i, classes.getByIdentity(XConceptExtension.instance().extractName(trace.get(i))).toString());
-		}
-		return l;
-	}
+//	private List<String> toStringList(XTrace trace, XEventClasses classes) {
+//		List<String> l = new ArrayList<>(trace.size());
+//		for (int i = 0; i < trace.size(); i++) {
+//			l.add(i, classes.getByIdentity(XConceptExtension.instance().extractName(trace.get(i))).toString());
+//		}
+//		return l;
+//	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	

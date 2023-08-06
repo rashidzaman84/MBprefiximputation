@@ -1,4 +1,4 @@
-package org.processmining.prefiximputation.modelbased.models;
+package org.processmining.prefiximputation.modelbased.completeforgetting;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,13 +7,13 @@ import java.util.Map;
 
 import org.processmining.models.semantics.petrinet.Marking;
 
-public class CasesRemoval {
+public class ForgettingCases {
 	protected LocalModelStructure lms;
 	protected LocalConformanceTracker lct;
 	/*public CasesRemoval(LocalModelStructure lms, Set<Map.Entry<String, LocalConformanceStatus>> EventStore) {
 		
 	}*/
-	public CasesRemoval(LocalModelStructure lms, LocalConformanceTracker lct) {
+	public ForgettingCases(LocalModelStructure lms, LocalConformanceTracker lct) {
 		this.lms = lms;
 		this.lct = lct;
 	}
@@ -34,7 +34,7 @@ public class CasesRemoval {
 			
 			//ELSE select the one farthest updated
 	
-	public String selectCaseToBeRemoved() {
+	public String selectCaseToBeForgotten() {
 		//lct is HashMap<String, LocalConformanceStatus> where LocalConformanceStatus is individual for each trace
 		//now we have to iterate through each entry and from the statistics (imputatioin history, conformance score, etc.)
 		//of each trace (accessible through correspondingLocalConformanceStatus object) identify the IDEAL CANDIDATE for removal. 
@@ -52,7 +52,7 @@ public class CasesRemoval {
 		//Boolean isCurrentMarkingNonDeterministic=true;
 		//Boolean isTraceImputed = true;
 		//Integer imputationSize = 0;		
-		String caseIdToBeRemoved=null;
+		String caseIdToBeForgotten=null;
 		Integer minTraceLength = Integer.MAX_VALUE;
 		Integer maxTraceLength = Integer.MIN_VALUE;
 		//Boolean firstTrace=true;
@@ -81,7 +81,7 @@ public class CasesRemoval {
 		    }*/
 		    
 		   if (trace.size()<minTraceLength) {
-		    	caseIdToBeRemoved = caseId;
+		    	caseIdToBeForgotten = caseId;
 		    	minTraceLength = trace.size();
 		    }
 		    
@@ -93,11 +93,11 @@ public class CasesRemoval {
 		}
 		
 		 if(!casesDeletionPriority.isEmpty()) {
-			 caseIdToBeRemoved = Collections.min(casesDeletionPriority.entrySet(), Map.Entry.comparingByValue()).getKey();
+			 caseIdToBeForgotten = Collections.min(casesDeletionPriority.entrySet(), Map.Entry.comparingByValue()).getKey();
 		    }	
 			/*System.out.println("SFR:\t" + caseIdToBeRemoved + "\t (" + (casesDeletionPriority.get(caseIdToBeRemoved)==null?null:casesDeletionPriority.get(caseIdToBeRemoved)) + ")\t" + lct.get(caseIdToBeRemoved).traceModelAlphabet +" in marking:\t" 
 		    + fetchMarking(caseIdToBeRemoved));*/
-		return caseIdToBeRemoved;    
+		return caseIdToBeForgotten;    
 	}
 	
 	private Marking fetchMarking(String caseId) {

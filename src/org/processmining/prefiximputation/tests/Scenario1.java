@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.deckfour.xes.classification.XEventClasses;
+import org.deckfour.xes.classification.XEventNameClassifier;
 import org.deckfour.xes.extension.std.XConceptExtension;
 import org.deckfour.xes.factory.XFactory;
 import org.deckfour.xes.factory.XFactoryBufferedImpl;
@@ -17,9 +18,8 @@ import org.processmining.framework.plugin.annotations.PluginCategory;
 import org.processmining.framework.plugin.annotations.PluginVariant;
 import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.semantics.petrinet.Marking;
-import org.processmining.prefiximputation.modelbased.models.LocalConformanceTracker;
-//import org.processmining.streamconformance.local.model.LocalModelStructure;
-import org.processmining.prefiximputation.modelbased.models.LocalModelStructure;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalConformanceTracker;
+import org.processmining.prefiximputation.modelbased.completeforgetting.LocalModelStructure;
 import org.processmining.prefiximputation.modelbased.plugins.LocalOnlineConformanceConfiguration;
 import org.processmining.processtree.ProcessTree;
 
@@ -47,8 +47,10 @@ public class Scenario1 {
 	
 	public LocalOnlineConformanceConfiguration plugin(UIPluginContext context, Petrinet net, Marking initMarking, ProcessTree tree, XLog log) throws Exception {
 		
-		LocalModelStructure lms = new LocalModelStructure(context, net, initMarking, tree, "Prefix Alignment", 0); 				
+		LocalModelStructure lms = new LocalModelStructure(context, net, initMarking, /*tree,*/ "Prefix Alignment", 0); 				
 		LocalConformanceTracker tracker = new LocalConformanceTracker(lms, 100);
+		
+		XEventClasses eventClasses = XEventClasses.deriveEventClasses(new XEventNameClassifier(), log);
 		
 		int factor = 1;
 		List<Double> memoryList = new ArrayList<Double>();
@@ -61,7 +63,7 @@ public class Scenario1 {
 				int innerLoop = (t.size()>=numberOfEvents?numberOfEvents:t.size());
 				for(int x=0; x<numberOfCases; x++) {					
 					String caseId = XConceptExtension.instance().extractName(t);
-					List<String> traceStrLst = toStringList(t, lms.eventClasses);
+					List<String> traceStrLst = toStringList(t, eventClasses);
 					double traceCost=0.0;
 					for(int y=0; y<innerLoop; y++) {
 						traceCost += tracker.replayEvent(caseId, traceStrLst.get(y)).getConformance();
@@ -72,7 +74,7 @@ public class Scenario1 {
 				}
 				factor = alternateFactor(factor);
 				String caseId = XConceptExtension.instance().extractName(t);
-				List<String> traceStrLst = toStringList(t, lms.eventClasses);
+				List<String> traceStrLst = toStringList(t, eventClasses);
 				double traceCost=0.0;
 				int loopsize = (t.size()>=factor?factor:t.size());
 				for(int j=0; j<loopsize; j++) {

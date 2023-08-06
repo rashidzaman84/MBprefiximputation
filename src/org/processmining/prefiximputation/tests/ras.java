@@ -17,6 +17,11 @@ public class ras {
 		if(str1.equals(str2.subList(0, str2.size()-1))) {
 			System.out.println("True");
 		}
+		
+		Double test = 0.0;
+		if(test == 0.0) {
+			System.out.println("We are equal");
+		}
 	}
 
 }

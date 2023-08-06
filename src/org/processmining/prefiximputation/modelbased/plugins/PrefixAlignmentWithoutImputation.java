@@ -17,8 +17,6 @@ import org.deckfour.xes.classification.XEventClasses;
 import org.deckfour.xes.classification.XEventClassifier;
 import org.deckfour.xes.classification.XEventNameClassifier;
 import org.deckfour.xes.extension.std.XConceptExtension;
-import org.deckfour.xes.factory.XFactory;
-import org.deckfour.xes.factory.XFactoryBufferedImpl;
 import org.deckfour.xes.info.XLogInfo;
 import org.deckfour.xes.info.XLogInfoFactory;
 import org.deckfour.xes.model.XLog;
@@ -48,6 +46,7 @@ import org.processmining.onlineconformance.models.PartialAlignment;
 import org.processmining.onlineconformance.parameters.IncrementalReplayerParametersImpl;
 import org.processmining.onlineconformance.parameters.IncrementalRevBasedReplayerParametersImpl;
 import org.processmining.prefiximputation.inventory.NullConfiguration;
+import org.processmining.prefiximputation.inventory.StatesCalculator;
 import org.processmining.prefiximputation.tests.TimeStampsBasedLogToStreamConverter;
 
 import gnu.trove.map.TObjectDoubleMap;
@@ -70,7 +69,7 @@ public class PrefixAlignmentWithoutImputation {
 		Map<String, Collection<Transition>> labelsToModelElementsMap = new HashMap<>();
 		TObjectDoubleMap<Transition> modelMoveCosts = new TObjectDoubleHashMap<>();
 		TObjectDoubleMap<String> labelMoveCosts = new TObjectDoubleHashMap<>();
-		XFactory xesFactory = new XFactoryBufferedImpl();
+		//XFactory xesFactory = new XFactoryBufferedImpl();
 		//PrefixAlignmentConstrained pac= new PrefixAlignmentConstrained();
 		
 		//String petrinetFile = /*"D:\\TEST\\simplest.pnml";*/ "D:\\Research Work\\latest\\Streams\\Rashid Prefix Alignment\\Scenario 1\\CCC19 - Model PN_modified.pnml";
@@ -94,8 +93,10 @@ public class PrefixAlignmentWithoutImputation {
 			e.printStackTrace();
 		}*/
 		
-		setupLabelMap(net, modelElementsToLabelMap, labelsToModelElementsMap );
-		setupModelMoveCosts(net, modelMoveCosts, labelMoveCosts);
+		/*setupLabelMap(net, modelElementsToLabelMap, labelsToModelElementsMap );
+		setupModelMoveCosts(net, modelMoveCosts, labelMoveCosts);*/
+		setupLabelMap_(net, modelElementsToLabelMap, labelsToModelElementsMap );
+		setupModelMoveCosts_(net, modelMoveCosts, labelMoveCosts, labelsToModelElementsMap);
 		IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition> parameters = new IncrementalRevBasedReplayerParametersImpl<>();
 		parameters.setUseMultiThreading(false);
 		parameters.setLabelMoveCosts(labelMoveCosts);
@@ -230,7 +231,7 @@ public class PrefixAlignmentWithoutImputation {
         int noOfCasesDeleted = 0;
         double completeLogCost = 0.0;
 		//ArrayList<Pair<Pair<String,String>, Date>> eventLogSortedByDate1 = sortEventLogByDate2(log);
-        ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate2(log);
+        ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate(log);
 		//LinkedHashMap<Pair<String,String>, Date> eventLogSortedByDate = sortEventLogByDate(log);	//Date-sorted Stream	
         int logSize = eventLogSortedByDate.size();
         Date startDateCurrentWindow = getWindowTimeStamp(eventLogSortedByDate, "start");
@@ -245,7 +246,7 @@ public class PrefixAlignmentWithoutImputation {
         Set<String> afterTideCases = new HashSet<String>();          
         Set<String> nonConformantCasesCummulative = new  HashSet<String>();        
         List<Double> costPerTraceCummulative = new ArrayList<Double>();
-        
+                      
         //Window-specific statistics
         Set<String> casesObservedCurrentWindow = new  HashSet<String>();
         Set<String> nonConformantCasesCurrentWindow = new  HashSet<String>();		
@@ -256,6 +257,7 @@ public class PrefixAlignmentWithoutImputation {
 		
 		Map<String, ArrayList<PartialAlignment>> alignmentsLife = new HashMap<String, ArrayList<PartialAlignment>>();
         Map<String, ArrayList<Double>> alignmentsLifeScore = new HashMap<String, ArrayList<Double>>();
+        Map<String, ArrayList<Integer>> alignmentsLifeStates = new HashMap<>();
         
         System.out.println("CW No. of max. Traces, CW No. of all cases observed, CW No. of conformant traces, CW No. of non-conformant traces, CW No. of pre-tide traces, CW No. of in-tide traces,"
         		+ " CW No. of post-tide traces, CW No. of observed events, CW No. of conformant events, CW No. of non-conformant events");
@@ -267,7 +269,10 @@ public class PrefixAlignmentWithoutImputation {
 			eventTimeStamp = entry.getValue();*/
         	caseId = entry.getValue0();
 			event = entry.getValue1();
-			eventTimeStamp = entry.getValue2();			
+			eventTimeStamp = entry.getValue2();		
+			if(caseId.equals("205846")) {
+				System.out.println("case found");
+			}
 			
 			
 			//----------------Check if the window is changing. If yes, then report the statistics of the current window and purge the current window-specific data structures
@@ -395,13 +400,19 @@ public class PrefixAlignmentWithoutImputation {
 			if(alignmentsLife.containsKey(caseId)) {
 				alignmentsLife.get(caseId).add(partialAlignment);
 				alignmentsLifeScore.get(caseId).add(partialAlignment.getCost());
+				alignmentsLifeStates.get(caseId).add(StatesCalculator.getStartState(partialAlignment));
 			}else {
 				ArrayList<PartialAlignment> tempRecord = new ArrayList<PartialAlignment>();
 				tempRecord.add(partialAlignment);
 				alignmentsLife.put(caseId, tempRecord);
+				
 				ArrayList<Double> tempScore = new ArrayList<Double>();
 				tempScore.add(partialAlignment.getCost());
 				alignmentsLifeScore.put(caseId, tempScore);
+				
+				ArrayList<Integer> tempStates = new ArrayList<>();
+				tempStates.add(StatesCalculator.getStartState(partialAlignment));
+				alignmentsLifeStates.put(caseId, tempStates);
 			}
 			//System.out.println(partialAlignment);
 			//System.out.println(partialAlignment.size());
@@ -520,6 +531,17 @@ public class PrefixAlignmentWithoutImputation {
 		}
         
 		System.out.println("And the grand sum is " + sum);
+		
+		for(Entry<String, ArrayList<Integer>> entry: alignmentsLifeStates.entrySet()) {
+			System.out.println();
+			//bf.newLine();
+			System.out.print(entry.getKey() + ",");
+			//bf.write(entry.getKey() + ",");
+			for(Integer value: entry.getValue()) {
+				System.out.print(value + ",");
+				//bf.write(value + ",");
+			}
+		}
 		
 		return pluginResult;
 	}
@@ -650,6 +672,69 @@ public class PrefixAlignmentWithoutImputation {
 			l.add(i, classes.getByIdentity(XConceptExtension.instance().extractName(trace.get(i))).toString());
 		}
 		return l;
+	}
+	private static void setupLabelMap_(final Petrinet net, Map<Transition, String> modelElementsToLabelMap, Map<String, Collection<Transition>> labelsToModelElementsMap) {
+		
+		if(NullConfiguration.isMappingAutomatic) {
+			for (org.processmining.models.graphbased.directed.petrinet.elements.Transition t : net.getTransitions()) {
+				if (!t.isInvisible()) {
+					String label = t.getLabel();
+					modelElementsToLabelMap.put(t, label);
+					if (!labelsToModelElementsMap.containsKey(label)) {
+						Collection collection = new ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>();
+						collection.add(t);
+						labelsToModelElementsMap.put(label, collection);
+						//labelsToModelElementsMap.put(label, Collections.singleton(t));
+					} else {
+						labelsToModelElementsMap.get(label).add(t);
+					}
+				}
+			}
+		}/*else {			
+			String[] nextLine= new String[2];
+			CSVConfig importConfig = new CSVConfig(modelStreamMapping);
+			try (ICSVReader reader = modelStreamMapping.createReader(importConfig)) {
+				while ((nextLine = reader.readNext()) != null) {
+					for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: net.getTransitions()) {
+						if(t.getLabel().equals(nextLine[0])) {
+							modelElementsToLabelMap.put(t, nextLine[1]);
+						}
+					}
+				}
+			}
+
+			HashSet<String> distinctValues = new HashSet<>();
+			for(Entry<org.processmining.models.graphbased.directed.petrinet.elements.Transition, String> entry: modelElementsToLabelMap.entrySet()) {
+				distinctValues.add(entry.getValue());
+			}
+
+			for(String value : distinctValues) {
+				Collection<org.processmining.models.graphbased.directed.petrinet.elements.Transition> temp = new ArrayList<>();
+				for(Entry<org.processmining.models.graphbased.directed.petrinet.elements.Transition, String> entry: modelElementsToLabelMap.entrySet()) {
+					if(entry.getValue().equals(value)) {
+						temp.add(entry.getKey());
+					}
+				}
+				labelsToModelElementsMap.put(value, temp);
+			}			
+		}*/
+		
+	}
+	private static void setupModelMoveCosts_(final Petrinet net, TObjectDoubleMap<Transition> modelMoveCosts, TObjectDoubleMap<String> labelMoveCosts, Map<String, Collection<Transition>> labelsToModelElementsMap) {
+		for (org.processmining.models.graphbased.directed.petrinet.elements.Transition t : net.getTransitions()) {
+			if (t.isInvisible() /*|| (t.getLabel().equals("A_FINALIZED"))*/) {
+				modelMoveCosts.put(t, (short) 0);
+				//labelMoveCosts.put(t.getLabel(), (short) 0);
+			} else {
+				modelMoveCosts.put(t, (short) 1);
+				//labelMoveCosts.put(t.getLabel(), (short) 1);
+				//labelMoveCosts.put("A_FINALIZED", (short) 1);
+			}
+		}
+		
+		for(String label : labelsToModelElementsMap.keySet()) {
+			labelMoveCosts.put(label, (short) 1);
+		}
 	}
 
 	private static void setupLabelMap(final Petrinet net, Map<Transition, String> modelElementsToLabelMap, Map<String, Collection<Transition>> labelsToModelElementsMap) {
@@ -1257,7 +1342,8 @@ public class PrefixAlignmentWithoutImputation {
 				}
 			}
 		}*/				
-	}
+	}	
+	
 
 	//TODO: needs a parameter object
 	private static void setupModelMoveCosts(final Petrinet net, TObjectDoubleMap<Transition> modelMoveCosts, TObjectDoubleMap<String> labelMoveCosts) {

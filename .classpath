@@ -17,5 +17,7 @@
 	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/javatuples-1.2.jar"/>
 	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/PNAnalysis.jar"/>
 	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/dom-2.3.0-jaxb-1.0.6.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/moa.jar"/>
+	<classpathentry kind="lib" path="C:/Users/20185004/eclipse-workspace-Streams/PrefixImputation/lib/weka.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
