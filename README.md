@@ -7,7 +7,7 @@
 
 Implementation of:
 
-- [Prefix imputation of orphan events in event stream processing](https://dl.acm.org/doi/pdf/10.1145/3485447.3512221). R Zaman, M Hassani, BF Van Dongen - Frontiers in big Data, 2021
+- [Prefix imputation of orphan events in event stream processing](https://www.frontiersin.org/journals/big-data/articles/10.3389/fdata.2021.705243/full). R Zaman, M Hassani, BF Van Dongen - Frontiers in big Data, 2021
 
 
 
