@@ -12,6 +12,9 @@ Implementation of:
 
 
 This prototype implementation, imputes the missing prefix of partial traces, i.e., traces with a missing prefix. The approach locates the maiden orphan event of a partial trace in the reference process model and then leverages this process model for predicting the missing prefix.
+
+![](fdata-04-705243-g001.jpg)
+
 Positioned in the context of event streams, on the one hand, the approach systematically forgets cases in a scenario of memory overflow. On the other hand, it reliably regenerates the forgotten prefix upon receipt of the orphan event(s) which corresponds to the forgotten cases.
 
 
