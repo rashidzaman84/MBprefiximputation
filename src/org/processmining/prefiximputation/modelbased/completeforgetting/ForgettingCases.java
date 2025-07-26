@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.processmining.models.semantics.petrinet.Marking;
+import org.processmining.onlineconformance.models.PartialAlignment;
 
 public class ForgettingCases {
 	protected LocalModelStructure lms;
@@ -54,28 +55,45 @@ public class ForgettingCases {
 		//Integer imputationSize = 0;		
 		String caseIdToBeForgotten=null;
 		Integer minTraceLength = Integer.MAX_VALUE;
-		Integer maxTraceLength = Integer.MIN_VALUE;
+		//Integer maxTraceLength = Integer.MIN_VALUE;
 		//Boolean firstTrace=true;
+		
+		boolean priority1, priority2, priority3, priority4;
+		priority1 = priority2 = priority3 = priority4 = false;
+		    
 		
 		for (Map.Entry<String, LocalConformanceStatus> entry : lct.entrySet()) {
 		    String caseId = entry.getKey();
-		    if(caseId.equals(/*"199098""199071""179841""198113"*/"173757") ) {
-				//System.out.println("Found!!!!");
-			}
+//		    if(caseId.equals(/*"199098""199071""179841""198113"*/"173757") ) {
+//				//System.out.println("Found!!!!");
+//			}
 		    LocalConformanceStatus lcs = entry.getValue();
 		    ArrayList<String> trace=lcs.traceModelAlphabet;
-		    if(trace.size()==1) {		//by-default conformance will be 100% as the single event is a case-starter otherwise would have been imputed
+		    PartialAlignment partialAlignment = lcs.OCC2.replayer.getDataStore().get(caseId);
+		    
+		    if(partialAlignment.getState().getStateInModel().equals(lms.finalMarking)){
 		    	return caseId;
-		    }else if (lcs.currentImputationSize == (trace.size()-1) ) {       //by-default conformance will be 100% as we are imputing conformant prefix
+		    } else if(!priority1 && trace.size()==1 && partialAlignment.getCost() == 0) {		//by-default conformance will be 100% as the single event is a case-starter otherwise would have been imputed
+//		    	if(!trace.get(0).equals("S+complete")) {
+//		    		System.out.println("WHATTTTTTTT");
+//		    	}
+		    	priority1 = priority2= priority3 = priority4 = true;
+		    	casesDeletionPriority.put(caseId, 1);
+		    	//return caseId;
+		    }else if (!priority2 && lcs.currentImputationSize == (trace.size()-1) ) {       //by-default conformance will be 100% as we are imputing conformant prefix
 		    	if(!lcs.isTraceInNonDeterministicRegion) {
-		    		casesDeletionPriority.put(caseId, 1);   //traces with last event in non-ND regions are favored as the orphan event in a ND-region 
+		    		casesDeletionPriority.put(caseId, 2);   //traces with last event in non-ND regions are favored as the orphan event in a ND-region 
 		    	}else {										//can provide an escape for all other events in the ND region
-		    		casesDeletionPriority.put(caseId, 2);
+		    		casesDeletionPriority.put(caseId, 3);
 		    	}
-		    }else if (lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(/*trace*/lcs.generateTraceFromAlignment(lcs.OCC2.replayer.getDataStore().get(caseId))) && !lcs.isTraceInNonDeterministicRegion) {  //may or may not be imputed
-		    	casesDeletionPriority.put(caseId, 3);
-		    }else if(lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(/*trace*/lcs.generateTraceFromAlignment(lcs.OCC2.replayer.getDataStore().get(caseId)))){
+		    	priority2= priority3 = priority4 = true;
+		    }else if (!priority3 && lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(/*trace*/lcs.generateTraceFromAlignment(lcs.OCC2.replayer.getDataStore().get(caseId))) && !lcs.isTraceInNonDeterministicRegion) {  //may or may not be imputed
 		    	casesDeletionPriority.put(caseId, 4);
+		    	priority3 = priority4= true;
+		    }else if(!priority4 && lcs.last.getTraceCost()==0.0 && isTraceSameAsShortestPath(/*trace*/lcs.generateTraceFromAlignment(lcs.OCC2.replayer.getDataStore().get(caseId)))){
+		    	casesDeletionPriority.put(caseId, 5);
+		    	priority4 = true;
+		    	
 		    }/*else if(another scenario) {
 		    	
 		    }*/

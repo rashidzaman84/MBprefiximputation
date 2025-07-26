@@ -16,7 +16,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 
-import org.apache.commons.lang3.SerializationUtils;
 import org.deckfour.xes.extension.XExtensionManager;
 import org.deckfour.xes.factory.XFactory;
 import org.deckfour.xes.factory.XFactoryBufferedImpl;
@@ -99,7 +98,7 @@ public class LocalModelStructure {
 	public HashMap<String, ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> executionSequences = new HashMap<>();
 	public ShortestPathInfo<State, Transition> shortestPathCalculatorUnfoldedCopy;
 	public CoverabilityGraph coverabilityGraphUnfoldedCopy;
-	public HashMap<String, NonDeterministicRegion> NDRegions = new HashMap<>();
+	//public HashMap<String, NonDeterministicRegion> NDRegions = new HashMap<>();
 		
 	// cached values
 	private Double maxOfMinRelationsAfter = null;
@@ -154,6 +153,7 @@ public class LocalModelStructure {
 		/*if(NullConfiguration.allowedDuplicateLabelApproximation) {
 			this.spareReplayer = new OnlineConformanceChecker2(this, false, null);
 		}*/
+		populateShortestPrefixes(coverabilityGraphUnfoldedCopy, shortestPathCalculatorUnfoldedCopy);
 	}
 
 	public LocalModelStructure(PluginContext context, Petrinet net, Marking initMarking, /*ProcessTree tree,*/ String ccAlgoChoice, int imputationRevisitWindowSize, CSVFile modelStreamMapping) throws Exception {
@@ -264,8 +264,8 @@ public class LocalModelStructure {
 		//populateNonDeterministicActivities(tree);
 		getCCEssentials(context, net);
 		
-		extractNDRegions();
-		calculateNDRegions(/*coverabilityGraphUnfolded, shortestPathCalculatorUnfolded*/);
+		//extractNDRegions();
+		//calculateNDRegions(/*coverabilityGraphUnfolded, shortestPathCalculatorUnfolded*/);
 		deReference();
 		//Now we need to define ND class.
 
@@ -283,10 +283,10 @@ public class LocalModelStructure {
 				}*/
 	}
 
-	public HashMap<String, NonDeterministicRegion> getNDRegionsCopy() {		
-		HashMap<String, NonDeterministicRegion> NDRegionsCopy = SerializationUtils.clone(NDRegions);	   
-		return NDRegionsCopy;		
-	}
+//	public HashMap<String, NonDeterministicRegion> getNDRegionsCopy() {		
+//		HashMap<String, NonDeterministicRegion> NDRegionsCopy = SerializationUtils.clone(NDRegions);	   
+//		return NDRegionsCopy;		
+//	}
 	
 	public Boolean isInNonDeterministicRegion(String orphanEvent) {				
 		if(nonDeterministicActivities.contains(orphanEvent)) {
@@ -491,98 +491,98 @@ public class LocalModelStructure {
 			processModelAlphabet.add(t.getLabel());
 		}
 	}
-	public void extractNDRegions() {		
-
-		//Marking initialMarking = PrefixAlignmentWithoutImputation.getInitialMarking(net);
-		//System.out.println("Initial Marking " + initialMarking);
-		//Marking finalMarking = PrefixAlignmentWithoutImputation.getFinalMarking(net);
-		//System.out.println("Final Marking " + finalMarking);
-		//for (Transition t : net.getTransitions()) 
-		//(Flow f : sys.getFlow()) {
-		//sys.getplaces f.getSource() f.getTarget()
-		ModelSemanticsPetrinet<Marking> modelSemantics = ModelSemanticsPetrinet.Factory.construct(net);
-		System.out.println("Transition enabled in the initial Marking of the model " + modelSemantics.getEnabledTransitions(initialMarking));
-		ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> NDStarterTransitions = new ArrayList<>();
-		//ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> NDEndingTransitions = new ArrayList<>();
-		/*HashMap<Transition, Marking> NDEndingTransitionsEnteringMarkings= new HashMap<Transition, Marking>();
-		Transition mainSplitter;*/
-		mainSplitterOutMarking = new Marking();
-
-		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: net.getTransitions()) {
-			int noOfChildren = 0;
-			for(PetrinetEdge p : net.getEdges()) {
-				if(p.getSource().equals(t)) {
-					noOfChildren++;
-					//System.out.println(t.getLabel());
-					//System.out.println(p.getTarget());
-				}
-			}
-			if(noOfChildren>1) {
-				NDStarterTransitions.add(t);
-			}
-
-			//System.out.println(t + ", " + t.getVisibleSuccessors());
-			//System.out.println(t + "  has parent: " + t.getParent());
-		}
-		//System.out.println(NDStarterTransitions);
-		if(NDStarterTransitions.isEmpty()) {
-			return;
-		}else if(NDStarterTransitions.size()==1) {
-			mainSplitter = NDStarterTransitions.get(0);
-		}else {
-			mainSplitter = getFirstSplitter(modelSemantics,initialMarking, net);			
-		}
-
-		for(PetrinetEdge p : net.getEdges()) {
-			if((p.getSource() instanceof org.processmining.models.graphbased.directed.petrinet.elements.Transition) && p.getSource().equals(mainSplitter)) {
-
-				//System.out.println(p.getTarget() );
-				for(Place pl: net.getPlaces()) {
-					//System.out.println((pl.getLabel() + "," + p.getTarget().toString()));
-					if(pl.getLabel().equals(p.getTarget().toString())) {
-						System.out.println(pl);
-						mainSplitterOutMarking.add(pl);
-					}
-				}
-				//mainSplitterOutMarking.add( p.getLabel());
-			}
-		}
-		System.out.println("The marking of the main splitter " + mainSplitterOutMarking);
-		System.out.println("----------------------------------");
-		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: net.getTransitions()) {
-			int noofchildren = 0;
-			for(PetrinetEdge p : net.getEdges()) {
-				if(p.getTarget().equals(t)) {
-					noofchildren++;
-					//System.out.println(t.getLabel());
-					//System.out.println(p.getTarget());
-				}
-			}
-			if(noofchildren>1) {
-				NDEndingTransitions.add(t);
-			}
-		}
-		System.out.println(NDEndingTransitions);
-		System.out.println("----------------------------------");
-		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: NDEndingTransitions) {
-			Marking temp = new Marking();
-			//System.out.println(t.getVisiblePredecessors());
-			for(PetrinetEdge p : net.getEdges()) {
-				if(p.getTarget().equals(t)) {
-					System.out.println(p.getTarget() );
-					for(Place pl: net.getPlaces()) {
-						if(pl.getLabel().equals(p.getSource().toString())) {
-							System.out.println(pl);
-							temp.add(pl);
-						}
-					}
-					//mainSplitterOutMarking.add( p.getLabel());
-				}
-			}
-			NDEndingTransitionsEnteringMarkings.put(t,temp);
-		}
-		System.out.println(NDEndingTransitionsEnteringMarkings);
-	}
+//	public void extractNDRegions() {		
+//
+//		//Marking initialMarking = PrefixAlignmentWithoutImputation.getInitialMarking(net);
+//		//System.out.println("Initial Marking " + initialMarking);
+//		//Marking finalMarking = PrefixAlignmentWithoutImputation.getFinalMarking(net);
+//		//System.out.println("Final Marking " + finalMarking);
+//		//for (Transition t : net.getTransitions()) 
+//		//(Flow f : sys.getFlow()) {
+//		//sys.getplaces f.getSource() f.getTarget()
+//		ModelSemanticsPetrinet<Marking> modelSemantics = ModelSemanticsPetrinet.Factory.construct(net);
+//		System.out.println("Transition enabled in the initial Marking of the model " + modelSemantics.getEnabledTransitions(initialMarking));
+//		ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> NDStarterTransitions = new ArrayList<>();
+//		//ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> NDEndingTransitions = new ArrayList<>();
+//		/*HashMap<Transition, Marking> NDEndingTransitionsEnteringMarkings= new HashMap<Transition, Marking>();
+//		Transition mainSplitter;*/
+//		mainSplitterOutMarking = new Marking();
+//
+//		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: net.getTransitions()) {
+//			int noOfChildren = 0;
+//			for(PetrinetEdge p : net.getEdges()) {
+//				if(p.getSource().equals(t)) {
+//					noOfChildren++;
+//					//System.out.println(t.getLabel());
+//					//System.out.println(p.getTarget());
+//				}
+//			}
+//			if(noOfChildren>1) {
+//				NDStarterTransitions.add(t);
+//			}
+//
+//			//System.out.println(t + ", " + t.getVisibleSuccessors());
+//			//System.out.println(t + "  has parent: " + t.getParent());
+//		}
+//		//System.out.println(NDStarterTransitions);
+//		if(NDStarterTransitions.isEmpty()) {
+//			return;
+//		}else if(NDStarterTransitions.size()==1) {
+//			mainSplitter = NDStarterTransitions.get(0);
+//		}else {
+//			mainSplitter = getFirstSplitter(modelSemantics,initialMarking, net);			
+//		}
+//
+//		for(PetrinetEdge p : net.getEdges()) {
+//			if((p.getSource() instanceof org.processmining.models.graphbased.directed.petrinet.elements.Transition) && p.getSource().equals(mainSplitter)) {
+//
+//				//System.out.println(p.getTarget() );
+//				for(Place pl: net.getPlaces()) {
+//					//System.out.println((pl.getLabel() + "," + p.getTarget().toString()));
+//					if(pl.getLabel().equals(p.getTarget().toString())) {
+//						System.out.println(pl);
+//						mainSplitterOutMarking.add(pl);
+//					}
+//				}
+//				//mainSplitterOutMarking.add( p.getLabel());
+//			}
+//		}
+//		System.out.println("The marking of the main splitter " + mainSplitterOutMarking);
+//		System.out.println("----------------------------------");
+//		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: net.getTransitions()) {
+//			int noofchildren = 0;
+//			for(PetrinetEdge p : net.getEdges()) {
+//				if(p.getTarget().equals(t)) {
+//					noofchildren++;
+//					//System.out.println(t.getLabel());
+//					//System.out.println(p.getTarget());
+//				}
+//			}
+//			if(noofchildren>1) {
+//				NDEndingTransitions.add(t);
+//			}
+//		}
+//		System.out.println(NDEndingTransitions);
+//		System.out.println("----------------------------------");
+//		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition t: NDEndingTransitions) {
+//			Marking temp = new Marking();
+//			//System.out.println(t.getVisiblePredecessors());
+//			for(PetrinetEdge p : net.getEdges()) {
+//				if(p.getTarget().equals(t)) {
+//					System.out.println(p.getTarget() );
+//					for(Place pl: net.getPlaces()) {
+//						if(pl.getLabel().equals(p.getSource().toString())) {
+//							System.out.println(pl);
+//							temp.add(pl);
+//						}
+//					}
+//					//mainSplitterOutMarking.add( p.getLabel());
+//				}
+//			}
+//			NDEndingTransitionsEnteringMarkings.put(t,temp);
+//		}
+//		System.out.println(NDEndingTransitionsEnteringMarkings);
+//	}
 	
 	public static org.processmining.models.graphbased.directed.petrinet.elements.Transition getFirstSplitter(ModelSemanticsPetrinet<Marking> modelSemantics, Marking initialMarking, Petrinet net) {
 		boolean found = false;
@@ -634,71 +634,71 @@ public class LocalModelStructure {
 		mainSplitterOutMarking = null;
 		NDEndingTransitionsEnteringMarkings = null;
 		executionSequences = null;
-		shortestPathCalculatorUnfoldedCopy = null;
-		coverabilityGraphUnfoldedCopy = null;
+		//shortestPathCalculatorUnfoldedCopy = null;
+		//coverabilityGraphUnfoldedCopy = null;
 		modelStreamMapping = null;
 	}	
 
-	public void calculateNDRegions(/*CoverabilityGraph coverabilityGraphUnfoldedCopy, ShortestPathInfo<State, Transition> shortestPathCalculatorUnfolded*/) {
-		if(Objects.isNull(mainSplitter)) {
-			System.out.println("No splitter found");
-			return;
-		}
-		String start = mainSplitter.getLabel();
-		State startState = null;
-
-		for (State s : coverabilityGraphUnfoldedCopy.getNodes()) {
-			for (Transition first : TSUtils.getOutgoingNonTau(s, new HashSet<Transition>())) {
-				if(TSUtils.getTransitionLabel(first).equals(start)) {
-					//startState = s;  //add break below
-					startState= first.getTarget();
-				}
-			}			
-		}		
-		Iterator iterator = NDEndingTransitions.iterator();
-		while(iterator.hasNext()) {
-			org.processmining.models.graphbased.directed.petrinet.elements.Transition target = (org.processmining.models.graphbased.directed.petrinet.elements.Transition) iterator.next();
-			State targetState = null;
-			String end = target.getLabel();
-
-			ArrayList<String> temp = new ArrayList<String>();
-			/*}
-		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition target : NDEndingTransitions) {
-			String end = target.getLabel();
-			State targetState = null;*/
-			for (State s : coverabilityGraphUnfoldedCopy.getNodes()) {				
-				for(Transition second : TSUtils.getIncomingNonTau(s, new HashSet<Transition>())) {
-					if(TSUtils.getTransitionLabel(second).equals(end)) {
-						
-						//targetState = s;
-						targetState = second.getSource();
-						ArrayList<String> temp2 =  getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState);
-						if(temp2.size()>temp.size()) {
-							temp.clear();
-							temp.addAll(temp2);
-						}
-					}
-				}
-			}
-			//ArrayList<String> temp = new ArrayList<String>();
-			temp =/*TSUtils.*/getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState);
-
-			//System.out.println(start + "-->" + end + " :: " + path);
-			//ArrayList<String> temp = new ArrayList<String>();
-			//temp = pathToPrefix(path,start, end);
-			System.out.println(temp);
-			if(!temp.isEmpty()) {
-				if(!isTrueTerminal(temp,end)) {
-					iterator.remove();
-					executionSequences.remove(end);
-				}else {
-					nonDeterministicActivities.addAll(temp);
-				}
-			}
-
-		}	
-		populateNDObjects();
-	}
+//	public void calculateNDRegions(/*CoverabilityGraph coverabilityGraphUnfoldedCopy, ShortestPathInfo<State, Transition> shortestPathCalculatorUnfolded*/) {
+//		if(Objects.isNull(mainSplitter)) {
+//			System.out.println("No splitter found");
+//			return;
+//		}
+//		String start = mainSplitter.getLabel();
+//		State startState = null;
+//
+//		for (State s : coverabilityGraphUnfoldedCopy.getNodes()) {
+//			for (Transition first : TSUtils.getOutgoingNonTau(s, new HashSet<Transition>())) {
+//				if(TSUtils.getTransitionLabel(first).equals(start)) {
+//					//startState = s;  //add break below
+//					startState= first.getTarget();
+//				}
+//			}			
+//		}		
+//		Iterator iterator = NDEndingTransitions.iterator();
+//		while(iterator.hasNext()) {
+//			org.processmining.models.graphbased.directed.petrinet.elements.Transition target = (org.processmining.models.graphbased.directed.petrinet.elements.Transition) iterator.next();
+//			State targetState = null;
+//			String end = target.getLabel();
+//
+//			ArrayList<String> temp = new ArrayList<String>();
+//			/*}
+//		for(org.processmining.models.graphbased.directed.petrinet.elements.Transition target : NDEndingTransitions) {
+//			String end = target.getLabel();
+//			State targetState = null;*/
+//			for (State s : coverabilityGraphUnfoldedCopy.getNodes()) {				
+//				for(Transition second : TSUtils.getIncomingNonTau(s, new HashSet<Transition>())) {
+//					if(TSUtils.getTransitionLabel(second).equals(end)) {
+//						
+//						//targetState = s;
+//						targetState = second.getSource();
+//						ArrayList<String> temp2 =  getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState);
+//						if(temp2.size()>temp.size()) {
+//							temp.clear();
+//							temp.addAll(temp2);
+//						}
+//					}
+//				}
+//			}
+//			//ArrayList<String> temp = new ArrayList<String>();
+//			temp =/*TSUtils.*/getShortestPath(shortestPathCalculatorUnfoldedCopy, startState, targetState);
+//
+//			//System.out.println(start + "-->" + end + " :: " + path);
+//			//ArrayList<String> temp = new ArrayList<String>();
+//			//temp = pathToPrefix(path,start, end);
+//			System.out.println(temp);
+//			if(!temp.isEmpty()) {
+//				if(!isTrueTerminal(temp,end)) {
+//					iterator.remove();
+//					executionSequences.remove(end);
+//				}else {
+//					nonDeterministicActivities.addAll(temp);
+//				}
+//			}
+//
+//		}	
+//		populateNDObjects();
+//	}
 
 	public boolean isTrueTerminal(ArrayList<String> temp, String terminalActivityCandidate) {
 		ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> tempTrace = new ArrayList<>();
@@ -754,19 +754,19 @@ public class LocalModelStructure {
 		return constructedMarking;
 	}
 
-	public void populateNDObjects() {
-		for(Entry<String, ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> entry: executionSequences.entrySet()) {
-			NDRegions.put(entry.getKey(), new NonDeterministicRegion());
-			int index=0;
-			for(Place p : mainSplitterOutMarking.baseSet()) {
-				index++;
-				ArrayList<String> temporary = extract(p, entry.getValue());
-				NonDeterministicRegion.branch b1= NDRegions.get(entry.getKey()).new branch(entry.getKey() + "-branch " + p.getLabel()) ;
-				b1.setBranchExecution(temporary);
-				NDRegions.get(entry.getKey()).addToSymmetry(/*p, */b1);
-			}
-		}
-	}
+//	public void populateNDObjects() {
+//		for(Entry<String, ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition>> entry: executionSequences.entrySet()) {
+//			NDRegions.put(entry.getKey(), new NonDeterministicRegion());
+//			int index=0;
+//			for(Place p : mainSplitterOutMarking.baseSet()) {
+//				index++;
+//				ArrayList<String> temporary = extract(p, entry.getValue());
+//				NonDeterministicRegion.branch b1= NDRegions.get(entry.getKey()).new branch(entry.getKey() + "-branch " + p.getLabel()) ;
+//				b1.setBranchExecution(temporary);
+//				NDRegions.get(entry.getKey()).addToSymmetry(/*p, */b1);
+//			}
+//		}
+//	}
 
 	public ArrayList<String> extract(Place p,  ArrayList<org.processmining.models.graphbased.directed.petrinet.elements.Transition> array) {
 		ArrayList<String> temp = new ArrayList<>();
@@ -984,8 +984,8 @@ public class LocalModelStructure {
 		ArrayList<String> trace = new ArrayList<>();
 		State prev = null;
 		Transition prevTransition = null;
-		System.out.println("///////////////////////////////////////////////////////////////////////////////////////////");
-		System.out.println(calculator.getShortestPath(from, to));
+		//System.out.println("///////////////////////////////////////////////////////////////////////////////////////////");
+		//System.out.println(calculator.getShortestPath(from, to));
 		for (State s : calculator.getShortestPath(from, to)) {
 			if (prev != null) {
 				Transition t = TSUtils.getConnection(prev, s);
@@ -1194,6 +1194,223 @@ public class LocalModelStructure {
 		}
 		
 	}
+	
+	public ArrayList<String> getShortestPath(Place source, Place target) {
+		
+		ArrayList<State> sourceStates = new ArrayList<>();
+		ArrayList<State> targetStates = new ArrayList<>();
+		
+		for (State src : coverabilityGraphUnfoldedCopy.getNodes()) {
+			Marking sourceStateToMarking = (Marking) src.getIdentifier(); 
+			List<Place> sourceMarking = sourceStateToMarking.toList();
+			if(sourceStateToMarking.contains(source) && !sourceStateToMarking.contains(target)) {
+			//if(s.getIdentifier().toString().contains("place_10"/*source.getLabel()*/)) {
+				
+				for (State trg : coverabilityGraphUnfoldedCopy.getNodes()) {
+					Marking targetStateToMarking = (Marking) trg.getIdentifier();
+					List<Place> targetMarking = targetStateToMarking.toList();
+					
+					targetMarking.removeAll(sourceMarking);
+					if(targetMarking.size() ==1 && targetMarking.get(0)==target) {
+						
+						targetMarking = targetStateToMarking.toList();
+						sourceMarking.removeAll(targetMarking);
+						if(sourceMarking.size()==1 && sourceMarking.get(0)==source) {
+							sourceStates.add(src);
+							targetStates.add(trg);
+							break;
+						}
+					}
+					
+//					if(sourceStateToMarking.minus(targetStateToMarkingCopy).contains(source) && 
+//							targetStateToMarking.minus(sourceStateToMarkingCopy).contains(target)) {
+//						System.out.println(sourceStateToMarking);
+//						System.out.println(targetStateToMarking);
+//					}
+				}
+				
+				
+				
+//				targetStates.add((State) stateToMarking);
+//				break; 
+				
+			}//else if(stateToMarking.contains(target) && !stateToMarking.contains(source)) {//(s.getIdentifier().toString().contains("place_5"/*target.getLabel()*/)) {
+				//targetStates.add(s);
+			//}else {
+				//continue;
+			//}
+			if(!sourceStates.isEmpty() && !sourceStates.isEmpty()) {
+				break;
+			}
+		}
+		
+		ArrayList<String> shortestPath = new ArrayList<>();
+		
+		for(State sourceState : sourceStates) {
+			for(State targetState : targetStates) {
+				ArrayList<String> temp2 =  getShortestPath(shortestPathCalculatorUnfoldedCopy, sourceState, targetState);
+				if(shortestPath.isEmpty()) {
+					shortestPath.addAll(temp2);
+				}else if(temp2.size()< shortestPath.size()) {
+					shortestPath.clear();
+					shortestPath.addAll(temp2);
+				}
+			}
+		}
+		
+		return shortestPath;
+	}
+	
+	
+public ArrayList<String> getShortestPath(Marking currentMarking, org.processmining.models.graphbased.directed.petrinet.elements.Transition targetTransition, 
+		ArrayList<Place> deterministicPlaces, ArrayList<Place> nonDeterministicPlaces) {
+		
+		ArrayList<Place> inputPlaces = new ArrayList<>();
+		
+		for(PetrinetEdge edge :net.getInEdges(targetTransition)) {
+			inputPlaces.add((Place) edge.getSource());
+		}
+		
+		State sourceState = null;
+		
+		for (State state : coverabilityGraphUnfoldedCopy.getNodes()) {
+			Marking sourceStateToMarking = (Marking) state.getIdentifier(); 
+			if(sourceStateToMarking.compareTo(currentMarking)==0) {
+				sourceState = state;
+				break;
+			}
+		}
+		
+		ArrayList<String> addendumPrefix = new ArrayList<>();
+		Marking updatedMarking= null;
+		
+		for (State state : coverabilityGraphUnfoldedCopy.getNodes()) {
+			Marking targetStateToMarking = (Marking) state.getIdentifier();
+			if(targetStateToMarking.containsAll(inputPlaces) && targetStateToMarking.containsAll(deterministicPlaces)) {
+				State targetState = state;
+				ArrayList<String> temp =  getShortestPath(shortestPathCalculatorUnfoldedCopy, sourceState, targetState);
+				if(addendumPrefix.isEmpty()) {
+					addendumPrefix.addAll(temp);
+					updatedMarking = (Marking) state.getIdentifier();
+				}else if(!temp.isEmpty() && temp.size()<addendumPrefix.size()){
+					addendumPrefix.clear();
+					addendumPrefix.addAll(temp);
+					updatedMarking = (Marking) state.getIdentifier();
+				}
+			}
+			
+		}
+		
+//		if(addendumPrefix.isEmpty() && inputPlaces.size()>1) {  //if transition has multiple input places and a sequence to enable all its inputs not found then we check token displacement for each single input place
+//			Set<Set<Place>> result = Sets.powerSet(Sets.newHashSet(inputPlaces));
+//			
+//			
+//			
+//			for(int i = inputPlaces.size()-1; i>0; i--) {
+//				
+//				for(Set<Place> elementSet : result) {
+//					if(elementSet.size() == i) {
+//						for (State state : coverabilityGraphUnfoldedCopy.getNodes()) {
+//							Marking targetStateToMarking = (Marking) state.getIdentifier();
+//							if(targetStateToMarking.containsAll(elementSet) && targetStateToMarking.containsAll(deterministicPlaces)) {
+//								State targetState = state;
+//								ArrayList<String> temp =  getShortestPath(shortestPathCalculatorUnfoldedCopy, sourceState, targetState);
+//								if(addendumPrefix.isEmpty()) {
+//									addendumPrefix.addAll(temp);
+//									updatedMarking = (Marking) state.getIdentifier();
+//								}else if(!temp.isEmpty() && temp.size()<addendumPrefix.size()){
+//									addendumPrefix.clear();
+//									addendumPrefix.addAll(temp);
+//									updatedMarking = (Marking) state.getIdentifier();
+//								}
+//							}
+//						}
+//						if(!addendumPrefix.isEmpty()) {
+//							adjustPlaces(currentMarking, updatedMarking, /*targetTransition*/inputPlaces,
+//									deterministicPlaces, nonDeterministicPlaces);//adjust the deterministic and non-deterministic places
+//						}
+//						return addendumPrefix;
+//					}
+//				}				
+//			}		   
+//		}
+		
+		if(!addendumPrefix.isEmpty()) {
+			adjustPlaces(currentMarking, updatedMarking, /*targetTransition*/inputPlaces,
+					deterministicPlaces, nonDeterministicPlaces);//adjust the deterministic and non-deterministic places
+		}		
+		return addendumPrefix;
+	}
+
+public void adjustPlaces(Marking currentMarking, Marking updatedMarking, /*org.processmining.models.graphbased.directed.petrinet.elements.Transition targetTransition*/
+		final ArrayList<Place> inputPlaces,
+		ArrayList<Place> deterministicPlaces, ArrayList<Place> nonDeterministicPlaces) {
+	
+	ArrayList<Place> placesInUpdatedMarking = new ArrayList<>();
+	placesInUpdatedMarking.addAll(updatedMarking.baseSet());
+	
+	
+	ArrayList<Place> placesInUpdatedMarkingCopy = new ArrayList<>(placesInUpdatedMarking);
+	
+	ArrayList<Place> unchangedDetPlaces = new ArrayList<>();
+	placesInUpdatedMarkingCopy.retainAll(deterministicPlaces);
+	unchangedDetPlaces.addAll(placesInUpdatedMarkingCopy);
+	
+	placesInUpdatedMarking.removeAll(deterministicPlaces);      //retain only new deterministic, old non-deterministc, and new non-deterministic places
+	
+	placesInUpdatedMarkingCopy = new ArrayList<>(placesInUpdatedMarking);
+	ArrayList<Place> unchangedNDPlaces = new ArrayList<>();
+	placesInUpdatedMarkingCopy.retainAll(nonDeterministicPlaces);
+	unchangedNDPlaces.addAll(placesInUpdatedMarkingCopy);
+	
+	placesInUpdatedMarking.removeAll(nonDeterministicPlaces);  //retain only the new deterministic and new non-deterministic places
+	
+	for(Place place : inputPlaces) {
+		if(placesInUpdatedMarking.contains(place)) {
+			unchangedDetPlaces.add(place);
+			placesInUpdatedMarking.remove(place);
+		}
+	}
+	
+	unchangedNDPlaces.addAll(placesInUpdatedMarking);			//placesInUpdatedMarking now only contains new non-det places
+	
+	deterministicPlaces.clear();
+	deterministicPlaces.addAll(unchangedDetPlaces);
+	
+	nonDeterministicPlaces.clear();
+	nonDeterministicPlaces.addAll(unchangedNDPlaces);
+	
+}
+//			for(Place p: inputPlaces) {
+//				
+//				ArrayList<String> branchAddendumPrefix = new ArrayList<>();
+//				
+//				for (State state : coverabilityGraphUnfoldedCopy.getNodes()) {
+//					Marking targetStateToMarking = (Marking) state.getIdentifier();
+//					if(targetStateToMarking.contains(p) && targetStateToMarking.containsAll(deterministicPlaces)) {
+//						State targetState = state;
+//						ArrayList<String> temp =  getShortestPath(shortestPathCalculatorUnfoldedCopy, sourceState, targetState);
+//						if(branchAddendumPrefix.isEmpty()) {
+//							branchAddendumPrefix.addAll(temp);
+//						}else if(!temp.isEmpty() && temp.size()<branchAddendumPrefix.size()){
+//							branchAddendumPrefix.clear();
+//							branchAddendumPrefix.addAll(temp);
+//						}
+//					}
+//					
+//				}
+//				
+//				
+//				addendumPrefix.addAll(branchAddendumPrefix);
+//				branchAddendumPrefix.clear();
+//				
+//				//update places non-det and det..
+//				
+//				
+//			}
+			
+			
+
 
 	/*public void printNicely(PrintStream out) {
 		List<String> alphabet = new LinkedList<String>();

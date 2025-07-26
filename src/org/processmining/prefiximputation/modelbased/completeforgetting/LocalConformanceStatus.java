@@ -4,15 +4,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 
+import org.processmining.models.graphbased.directed.petrinet.PetrinetEdge;
+import org.processmining.models.graphbased.directed.petrinet.PetrinetNode;
+import org.processmining.models.graphbased.directed.petrinet.elements.Place;
 import org.processmining.models.graphbased.directed.petrinet.elements.Transition;
 import org.processmining.models.semantics.petrinet.Marking;
 import org.processmining.onlineconformance.models.Move;
+import org.processmining.onlineconformance.models.Move.Type;
 import org.processmining.onlineconformance.models.PartialAlignment;
 import org.processmining.prefiximputation.inventory.NullConfiguration;
-import org.processmining.prefiximputation.modelbased.completeforgetting.NonDeterministicRegion.branch;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.AbstractStringMetric;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
@@ -51,6 +54,8 @@ public class LocalConformanceStatus {
 	//protected int imputationRevisitWindowSize;
 	protected String caseId;
 	public HashMap<String, NonDeterministicRegion> NDRegionsLocalPersonalisedCopy = new HashMap<>();
+	public ArrayList<Place> deterministicPlaces = new ArrayList<>();
+	public ArrayList<Place> nonDeterministicPlaces = new ArrayList<>();
 
 	public LocalConformanceStatus (LocalModelStructure lms) {
 		this.lms = lms;
@@ -86,6 +91,7 @@ public class LocalConformanceStatus {
 
 
 	public OnlineConformanceScore replayEventPrefAlign(String newEventName, /*XTrace tr,*/ Boolean isNew) {
+		
 
 		if(isNew) {			
 			//if observed event is orphan and is in Alphabet, either exactly or equivalently in case of duplication
@@ -97,7 +103,8 @@ public class LocalConformanceStatus {
 				}else {
 					int minLength = Integer.MAX_VALUE;					
 					for(Transition transition: lms.labelsToModelElementsMap.get(newEventName)){
-						ArrayList<String> temp = PrefixImputationStatic.imputePrefix(lms, transition.getLabel());
+						ArrayList<String> temp = new ArrayList<>();
+						temp.addAll(PrefixImputationStatic.imputePrefix(lms, transition.getLabel()));
 						if(temp.size() < minLength) {
 							traceModelAlphabet = temp;
 							currentImputationSize = traceModelAlphabet.size()-1;
@@ -106,19 +113,19 @@ public class LocalConformanceStatus {
 					}
 				}
 				traceStreamAlphabet = transformAlphabet(traceModelAlphabet);								
-				//If orphan event is in ND region
-				if(lms.isInNonDeterministicRegion(traceModelAlphabet.get(traceModelAlphabet.size()-1))) {
-					isTraceInNonDeterministicRegion = true;
-					NDRegionsLocalPersonalisedCopy = lms.getNDRegionsCopy();  //we need copies of only relevant ND objects not all
-					for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
-						for(branch eentry: entry.getValue().getSymmetry()) {
-							if(eentry.getBranchExecution().contains(traceModelAlphabet.get(traceModelAlphabet.size()-1))) {
-								eentry.activated = true;
-							}
-						}
-					}
-
-				}				
+//				//If orphan event is in ND region
+//				if(lms.isInNonDeterministicRegion(traceModelAlphabet.get(traceModelAlphabet.size()-1))) {
+//					isTraceInNonDeterministicRegion = true;
+//					NDRegionsLocalPersonalisedCopy = lms.getNDRegionsCopy();  //we need copies of only relevant ND objects not all
+//					for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
+//						for(branch eentry: entry.getValue().getSymmetry()) {
+//							if(eentry.getBranchExecution().contains(traceModelAlphabet.get(traceModelAlphabet.size()-1))) {
+//								eentry.activated = true;
+//							}
+//						}
+//					}
+//
+//				}				
 				OCC2 = new PrefixAlignmentBasedOCC(this.lms);				
 				batchCCPrefAlign(traceStreamAlphabet);
 				//batchCCPrefAlign(traceModelAlphabet);
@@ -127,9 +134,69 @@ public class LocalConformanceStatus {
 				//we observed O_Select but for our trace we need its aligned equivalnet label i.e., either O_Select_1 or O_Select_2 as 
 				//our Case Removal module requires this information for isTraceSameAsShortestPath() method.
 				//>>System.out.println(last.toString());
+				
+				
+				//If orphan event is in ND region
+				
+				
+				
+				PartialAlignment partialAlignment= OCC2.replayer.getDataStore().get(caseId);
+				List<Place> placesInCurrentMarking = ((Marking) partialAlignment.getState().getStateInModel()).toList();
+				Transition currentTransition = (Transition) partialAlignment.getState().getParentMove().getTransition();
+				
+				for(PetrinetNode tran: lms.net.getNodes()) {
+					if(tran == currentTransition && tran instanceof Transition) {
+						//
+						for(PetrinetEdge<? extends PetrinetNode, ? extends PetrinetNode> edge : lms.net.getOutEdges(tran)) {
+							if(edge.getTarget() instanceof Place) {
+								deterministicPlaces.add((Place) edge.getTarget());
+							}
+						}
+						break;
+					}
+				}
+				
+				if(placesInCurrentMarking.size() > deterministicPlaces.size() && placesInCurrentMarking.containsAll(deterministicPlaces)) {
+					isTraceInNonDeterministicRegion = true;
+					placesInCurrentMarking.removeAll(deterministicPlaces);
+					nonDeterministicPlaces.addAll(placesInCurrentMarking);
+				}
+				
 				refreshUpdateTime();
 				return last;
-			}else {              //when first event observed for a case is is either a case-starter or not-in model aplhabet
+				
+				
+				
+				
+				
+//				if(lms.isInNonDeterministicRegion(traceModelAlphabet.get(traceModelAlphabet.size()-1))) {
+//					isTraceInNonDeterministicRegion = true;
+//					PartialAlignment partialAlignment= OCC2.replayer.getDataStore().get(caseId);
+//					Marking currentMarking = (Marking) partialAlignment.getState().getStateInModel();
+//					
+//					Transition currentTransition = (Transition) partialAlignment.getState().getParentMove().getTransition();
+//					for(PetrinetNode tran: lms.net.getNodes()) {
+//						if(tran.equals(currentTransition) && tran instanceof Transition) {
+//							//
+//							for(PetrinetEdge<? extends PetrinetNode, ? extends PetrinetNode> edge : lms.net.getOutEdges(tran)) {
+//								if(edge.getTarget() instanceof Place) {
+//									deterministicPlaces.add((Place) edge.getTarget());
+//								}
+//							}
+//						}
+//					}
+//					
+//					for(Place place : currentMarking.baseSet()) {
+//						if(!deterministicPlaces.contains(place)) {
+//							nonDeterministicPlaces.add(place);
+//						}
+//					}
+//
+//				}	
+//				
+//				refreshUpdateTime();
+//				return last;
+			}else {              //when first event observed for a case is either a case-starter or not-in model alphabet
 				traceModelAlphabet.add(newEventName);
 				traceStreamAlphabet.add(newEventName);
 				OCC2 = new PrefixAlignmentBasedOCC(this.lms);
@@ -139,144 +206,397 @@ public class LocalConformanceStatus {
 			}
 
 		}else { //when the observed event has a history
-			String tempLabel = newEventName;
-
-			if(isTraceInNonDeterministicRegion) {  //trace is in ND region
-				ArrayList<Transition> mappedLabels = new ArrayList<Transition>(); 
-				//System.out.println("The event before the error may be!!!!!!!!!!!!!!!!" + newEventName);
-				mappedLabels.addAll(lms.labelsToModelElementsMap.get(newEventName));  ///?????? Sometimes 
-
-				if(mappedLabels.size() > 1) {    //if there is label duplication
-					Iterator iter = mappedLabels.iterator();
-					while(iter.hasNext()) {
-						Transition tran = (Transition) iter.next();
-						if(!lms.nonDeterministicActivities.contains(tran.getLabel())) {
-							iter.remove();
-						}
-
-					}
-					if(mappedLabels.size()==1) {  //if a single activity in the ND activities list exists with this label
-						newEventName = mappedLabels.get(0).getLabel();
-					}else {  //if multiple corresponding activities exists with this label
-						boolean found = false;
-						out:
-							for(Transition tr : mappedLabels) {
-								for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
-									for(branch eentry: entry.getValue().getSymmetry()) {
-										if(eentry.getBranchExecution().contains(tr.getLabel())) {
-											newEventName = tr.getLabel();  //select the one in the activited branch 
-											//as it will do less damage in case of wrong decision
-											//i.e. it will not impute the prefix and maximally
-											//marked as log-move
-											found = true;
-											break out;
-										}
-									}
-								}
-							}
-						if(found==false) {
-							newEventName = mappedLabels.get(0).getLabel();  //is it a wise decision???????
-						}
-					}
-				}
-				
-				//First we check if the punctuation has been observed and now we need to select the relevant ND object and do gliding
-				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
-					if(entry.getKey().equals(newEventName)) {
-						isTraceInNonDeterministicRegion = false;
 						
-						for(branch eentry: entry.getValue().getSymmetry()) {
-							if(!(eentry.activated)) {
-								traceModelAlphabet.addAll(eentry.getBranchExecution());
-//								OCC2 = new PrefixAlignmentBasedOCC(this.lms);
-//								traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
-//								batchCCPrefAlign(traceStreamAlphabet);
-//								refreshUpdateTime();
-//								return last;
-							}
-						}
+			
+			//PartialAlignment partialAlignment= OCC2.replayer.getDataStore().get(caseId);
+			//Transition currentTransition = (Transition) partialAlignment.getState().getParentMove().getTransition();
+			
+			if(lms.isInProcessModelAlphabet(newEventName)){
+				
+				if(isTraceInNonDeterministicRegion) {			
+				
+				ArrayList<Transition> mappedTransitions = new ArrayList<Transition>(); 
+				mappedTransitions.addAll(lms.labelsToModelElementsMap.get(newEventName));  ///?????? Sometimes 
+				
+				/////1. we check if a transition corresponding to the new event is DIRECTLY enabled in the current marking (consisting of deterministic and non-deterministic places)
+				for(Transition transition : mappedTransitions) {
+					
+					ArrayList<Place> inputPlaces = new ArrayList<>();
+					ArrayList<Place> outputPlaces = new ArrayList<>();
+					
+					for(PetrinetEdge edge :lms.net.getInEdges(transition)) {
+						inputPlaces.add((Place) edge.getSource());
+					}
+					
+					for(PetrinetEdge edge :lms.net.getOutEdges(transition)) {
+						outputPlaces.add((Place) edge.getTarget());
+					}
+					
+					if(deterministicPlaces.containsAll(inputPlaces)){             //we check if the transition corresponding to the new event is DIRECTLY enabled in the deterministic places of the current marking
+						
 						traceModelAlphabet.add(newEventName);
-						OCC2 = new PrefixAlignmentBasedOCC(this.lms);
-						traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
-						batchCCPrefAlign(traceStreamAlphabet);
-						refreshUpdateTime();
-						return last;
-					}
-				}
-				//If the observed event is not a punctuation then if it belongs to one of the activated branch AND nothing needs to be done
-				
-				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
-					//Boolean foundRelevantNDRegion = false;
-					for(branch eentry: entry.getValue().getSymmetry()) {
-						if(eentry.activated) {
-							//foundRelevantNDRegion = true;
-							if(eentry.getBranchExecution().contains(newEventName)) {
-								traceModelAlphabet.add(newEventName);
-								traceStreamAlphabet.clear();
-								//traceStreamAlphabet.add(newEventName);
-								traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
-								last.setTraceCost(OCC2.processXLog(caseId, traceStreamAlphabet.get(traceStreamAlphabet.size()-1)));
-								refreshUpdateTime();
-								return last;									
-							}
+						traceStreamAlphabet.add(newEventName);
+						last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+					
+						deterministicPlaces.removeAll(inputPlaces);
+						deterministicPlaces.addAll(outputPlaces);
+						
+					}else if(nonDeterministicPlaces.containsAll(inputPlaces)) {     //we check if the transition corresponding to the new event is DIRECTLY enabled in the non-deterministic places of the current marking
+						
+						traceModelAlphabet.add(newEventName);
+						traceStreamAlphabet.add(newEventName);
+						last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+						
+						nonDeterministicPlaces.removeAll(inputPlaces);
+						deterministicPlaces.addAll(outputPlaces);
+						
+					}else {   //2. we check if the new event is enabled by token firing a sequence from the NON-deterministic places
+						
+						ArrayList<String> temp = new ArrayList<>();
+						temp.addAll(lms.getShortestPath(OCC2.replayer.getDataStore().get(caseId).getState().getStateInModel(),transition, deterministicPlaces, nonDeterministicPlaces));
+						
+						double traceCost = OCC2.replayer.getDataStore().get(caseId).getCost();
+						
+						if(!temp.isEmpty()) {
+							traceModelAlphabet.addAll(temp);
+							traceModelAlphabet.add(newEventName);
+							traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+							OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+							batchCCPrefAlign(traceStreamAlphabet);
+							
+						}else {
+							System.out.println("empty firing sequence");
+							System.out.println("Current Trace: " + traceStreamAlphabet);
+							System.out.println("And event is: " + newEventName);
+//							if(caseId.equals("419")) {
+//								System.out.println("stop");
+//							}
+							
+							traceModelAlphabet.add(newEventName); //the newly arrived event is added to the existing trace history
+							traceStreamAlphabet.add(newEventName);
+							last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+							System.out.println(OCC2.replayer.getDataStore().get(caseId));
 						}
-					}						
-				}
-
-				//If the observed event is not a punctuation and it does not belongs to one of the activated branch but rather un-activated branch(es)
-				//then we need to impute the prefix of the longest branch till this event and mark the branch(es) as activated
-				
-				boolean found = false;
-				int maxIndex = Integer.MIN_VALUE; 
-				ArrayList<String> toBeImputed = new ArrayList<>();
-				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
-					for(branch eentry: entry.getValue().getSymmetry()) {
-						if(eentry.getBranchExecution().contains(newEventName)) {
-							eentry.activated = true;
-							found = true;
-							int index = eentry.getBranchExecution().indexOf(newEventName);
-							if (index> maxIndex) {
-								maxIndex = index;
-								toBeImputed.clear();
-								toBeImputed.addAll(eentry.getBranchExecution().subList(0, index+1));
-							}								
-						}
+					
+					
+//					traceModelAlphabet.add(newEventName);
+//					double traceCost = OCC2.replayer.getDataStore().get(caseId).getCost();
+//					OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+//					traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//					batchCCPrefAlign(traceStreamAlphabet);
+					refreshUpdateTime();
+					
+					double updatedTraceCost = OCC2.replayer.getDataStore().get(caseId).getCost();
+					
+					//update places: the non-deterministic to deterministic has already taken place in getShortestPath
+					
+					if(traceCost == updatedTraceCost && OCC2.replayer.getDataStore().get(caseId).getState().getParentMove().getType()==Type.MOVE_SYNC) {
+						deterministicPlaces.removeAll(inputPlaces);
+						deterministicPlaces.addAll(outputPlaces);
+					}					
+					}		
+					
+					if(/*!lms.nonDeterministicActivities.contains(transition.getLabel()) ||*/ nonDeterministicPlaces.isEmpty()) {  //check if trace is still in ND region
+						isTraceInNonDeterministicRegion = false;
 					}
-				}
-				if(found) {
-					traceModelAlphabet.addAll(toBeImputed);
-					traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
-					OCC2 = new PrefixAlignmentBasedOCC(this.lms);
-					batchCCPrefAlign(traceStreamAlphabet);
-					refreshUpdateTime();
-					return last;
-				}else {
-					traceModelAlphabet.add(tempLabel); //the newly arrived event is added to the existing trace history
-					//System.out.println(newEventName);
-					traceStreamAlphabet.add(tempLabel);
-					last.setTraceCost(OCC2.processXLog(caseId, tempLabel));
-					refreshUpdateTime();
+					
 					return last;
 				}
 				
-			}else {  //trace not in ND region
+			/////2. we check if the new event is enabled by token firing a sequence from the NON-deterministic places
+				
+//				ArrayList<String> effectiveTrace = new ArrayList<>();
+//				effectiveTrace.addAll(OCC2.replayer.getDataStore().get(caseId).projectOnLabels());
+				
+//				for(Transition transition : mappedTransitions) {  //here we are not checking all the transitions as for a transition with multiple imput places it is hard to say what is shortest
+//					
+//
+//					
+//					ArrayList<String> temp = new ArrayList<>();
+//					temp.addAll(lms.getShortestPath(OCC2.replayer.getDataStore().get(caseId).getState().getStateInModel(),transition, deterministicPlaces));
+//					
+//					if(!temp.isEmpty()) {
+//						traceModelAlphabet.addAll(temp);
+//						
+//						//update nd places 
+//						//nonDeterministicPlaces.remove(effectivePlace);
+//						
+//						//for(PetrinetEdge edge :lms.net.getOutEdges(transition)) {
+//							//outputPlaces.add((Place) edge.getTarget());
+//						//}
+//						
+//						//deterministicPlaces.addAll(outputPlaces);
+//					}
+//				
+//				
+//				traceModelAlphabet.add(newEventName);
+//				OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+//				traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//				//traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//				batchCCPrefAlign(traceStreamAlphabet);
+//				refreshUpdateTime();
+//				
+//				//updatePlaces()
+//					
+//				return last;
+//				}
+				
+								
+			/////3. event is appended to the trace and subjected to CC
+				
+				//traceModelAlphabet.add(newEventName); //the newly arrived event is added to the existing trace history
+				//traceStreamAlphabet.add(newEventName);
+				//last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+				//refreshUpdateTime();
+				//return last;
+				
+			}
+//				else {
+//				traceModelAlphabet.add(newEventName); //the newly arrived event is added to the existing trace history
+//				traceStreamAlphabet.add(newEventName);
+//				last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+//				refreshUpdateTime();
+//				return last;
+//			}
+				
+			}  
+			
+			
+			
+			//event is either an outlier and does not belong to the process, or the trace is not in ND region, 
+			//or the transition corresponding to the event is not firable by deterministic and non-deterministic places
+				//add event to trace and go for conformance checking
 				traceModelAlphabet.add(newEventName); //the newly arrived event is added to the existing trace history
 				traceStreamAlphabet.add(newEventName);
 				last.setTraceCost(OCC2.processXLog(caseId, newEventName));
 				refreshUpdateTime();
 				return last;
-			}		
+			
 		}	
 	}
+
+			
+			
+				
+//			for(Place place : lms.net.getPlaces()) {
+//			if(place.getLabel().equals("place_5")) {
+//				for(Place place_ : lms.net.getPlaces()) {
+//					if(place_.getLabel().equals("place_3")) {
+//						System.out.println(lms.getShortestPath(place, place_)); //getShortestPath(Place source, Place target) {
+//					}
+//					
+//				}
+//			}
+//				
+//		}		
+					
+					
+//					for(PetrinetNode node: lms.net.getNodes()) { 
+//						
+//						if(node instanceof Transition && node.equals(transition)) {
+//							
+//							
+//							
+//							for(PetrinetEdge<? extends PetrinetNode, ? extends PetrinetNode> edge : lms.net.getInEdges(node)) {
+//								if(edge.getSource() instanceof Place) {
+//									inputPlaces.add((Place) edge.getSource());
+//								}
+//							}
+//							
+//							if(deterministicPlaces.containsAll(inputPlaces)){
+//								last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+//								
+//							}
+//							
+//							for(PetrinetEdge<? extends PetrinetNode, ? extends PetrinetNode> edge : lms.net.getOutEdges(node)) {
+//								if(edge.getTarget() instanceof Place) {
+//									outputPlaces.add((Place) edge.getTarget());
+//								}
+//							}
+//							
+//							
+//							deterministicPlaces.removeAll(inputPlaces);
+//							deterministicPlaces.addAll(outputPlaces);
+//							
+//							if(!lms.nonDeterministicActivities.contains(transition.getLabel()) || nonDeterministicPlaces.isEmpty()) {  //check if trace is still in ND region
+//								isTraceInNonDeterministicRegion = false;
+//							}
+//							
+//							
+//							return last;
+//						}
+//					}
+					
+
+			//}
+			
+	
+			
+//			for(Transition transition : currentTransition.getVisibleSuccessors()) {
+//				if(transition.getLabel().equals(newEventName)) {
+//					last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+//					return last;
+//				}
+//			}
+//			
+			////2, If not, then we check if the transition(s) corresponding to the event observed can be enabled through firing sequence(s) from one or multiple places in non-deterministic places
+			//dus, first we need to calculate the number of input places to the this transition and then calculate the above
+			
+			//for(place p_source : transition.inputplaces){
+					//for(place p_target in non-deterministic places){
+							//search a firing sequence from p_source to p_target
+					//}
+			//}
+			
+			////////////////////////////////////////////////////////////////////////////
+			
+			
+			
+//			String tempLabel = newEventName;
+//
+//			if(isTraceInNonDeterministicRegion) {  //trace is in ND region
+//				ArrayList<Transition> mappedLabels = new ArrayList<Transition>(); 
+//				//System.out.println("The event before the error may be!!!!!!!!!!!!!!!!" + newEventName);
+//				mappedLabels.addAll(lms.labelsToModelElementsMap.get(newEventName));  ///?????? Sometimes 
+//
+//				//-------------------------------------------------
+//				if(mappedLabels.size() > 1) {    //if there is label duplication
+//					Iterator iter = mappedLabels.iterator();
+//					while(iter.hasNext()) {
+//						Transition tran = (Transition) iter.next();
+//						if(!lms.nonDeterministicActivities.contains(tran.getLabel())) {
+//							iter.remove();
+//						}
+//
+//					}
+//					if(mappedLabels.size()==1) {  //if a single activity in the ND activities list exists with this label
+//						newEventName = mappedLabels.get(0).getLabel();
+//					}else {  //if multiple corresponding activities exists with this label
+//						boolean found = false;
+//						out:
+//							for(Transition tr : mappedLabels) {
+//								for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
+//									for(branch eentry: entry.getValue().getSymmetry()) {
+//										if(eentry.getBranchExecution().contains(tr.getLabel())) {
+//											newEventName = tr.getLabel();  //select the one in the activited branch 
+//											//as it will do less damage in case of wrong decision
+//											//i.e. it will not impute the prefix and maximally
+//											//marked as log-move
+//											found = true;
+//											break out;
+//										}
+//									}
+//								}
+//							}
+//						if(found==false) {
+//							newEventName = mappedLabels.get(0).getLabel();  //is it a wise decision???????
+//						}
+//					}
+//				}
+//				//-----------------------------------------------------------------------------------
+//				
+//				//First we check if the punctuation has been observed and now we need to select the relevant ND object and do gliding
+//				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
+//					if(entry.getKey().equals(newEventName)) {
+//						isTraceInNonDeterministicRegion = false;
+//						
+//						for(branch eentry: entry.getValue().getSymmetry()) {
+//							if(!(eentry.activated)) {
+//								traceModelAlphabet.addAll(eentry.getBranchExecution());
+////								OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+////								traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+////								batchCCPrefAlign(traceStreamAlphabet);
+////								refreshUpdateTime();
+////								return last;
+//							}
+//						}
+//						traceModelAlphabet.add(newEventName);
+//						OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+//						traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//						batchCCPrefAlign(traceStreamAlphabet);
+//						refreshUpdateTime();
+//						return last;
+//					}
+//				}
+//				//If the observed event is not a punctuation then if it belongs to one of the activated branch AND nothing needs to be done
+//				
+//				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
+//					//Boolean foundRelevantNDRegion = false;
+//					for(branch eentry: entry.getValue().getSymmetry()) {
+//						if(eentry.activated) {
+//							//foundRelevantNDRegion = true;
+//							if(eentry.getBranchExecution().contains(newEventName)) {
+//								traceModelAlphabet.add(newEventName);
+//								traceStreamAlphabet.clear();
+//								//traceStreamAlphabet.add(newEventName);
+//								traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//								last.setTraceCost(OCC2.processXLog(caseId, traceStreamAlphabet.get(traceStreamAlphabet.size()-1)));
+//								refreshUpdateTime();
+//								return last;									
+//							}
+//						}
+//					}						
+//				}
+//
+//				//If the observed event is not a punctuation and it does not belongs to one of the activated branch but rather un-activated branch(es)
+//				//then we need to impute the prefix of the longest branch till this event and mark the branch(es) as activated
+//				
+//				boolean found = false;
+//				int maxIndex = Integer.MIN_VALUE; 
+//				ArrayList<String> toBeImputed = new ArrayList<>();
+//				for(Entry<String, NonDeterministicRegion> entry : NDRegionsLocalPersonalisedCopy.entrySet()) {
+//					for(branch eentry: entry.getValue().getSymmetry()) {
+//						if(eentry.getBranchExecution().contains(newEventName)) {
+//							eentry.activated = true;
+//							found = true;
+//							int index = eentry.getBranchExecution().indexOf(newEventName);
+//							if (index> maxIndex) {
+//								maxIndex = index;
+//								toBeImputed.clear();
+//								toBeImputed.addAll(eentry.getBranchExecution().subList(0, index+1));
+//							}								
+//						}
+//					}
+//				}
+//				if(found) {
+//					traceModelAlphabet.addAll(toBeImputed);
+//					traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//					OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+//					batchCCPrefAlign(traceStreamAlphabet);
+//					refreshUpdateTime();
+//					return last;
+//				}else {
+//					traceModelAlphabet.add(tempLabel); //the newly arrived event is added to the existing trace history
+//					//System.out.println(newEventName);
+//					traceStreamAlphabet.add(tempLabel);
+//					last.setTraceCost(OCC2.processXLog(caseId, tempLabel));
+//					refreshUpdateTime();
+//					return last;
+//				}
+//				//-----------------------------------------------
+//				
+//			}else {  //trace not in ND region
+//				traceModelAlphabet.add(newEventName); //the newly arrived event is added to the existing trace history
+//				traceStreamAlphabet.add(newEventName);
+//				last.setTraceCost(OCC2.processXLog(caseId, newEventName));
+//				refreshUpdateTime();
+//				return last;
+//			}		
 
 	public ArrayList<String> transformAlphabet(ArrayList<String> inModelAlphabet){
 
 		ArrayList<String> temp = new ArrayList<>();
 		for(String event: inModelAlphabet) {
+			boolean mapped = false;
 			for(Entry<String, Collection<Transition>> entry: lms.labelsToModelElementsMap.entrySet()) {
+				if(mapped) {
+					break;
+				}
 				for(Transition transition: entry.getValue()) {
 					if(transition.getLabel().equals(event)) {
 						temp.add(entry.getKey());
+						mapped = true;
+						break;
 					}
 				}
 			}
@@ -517,3 +837,46 @@ public class LocalConformanceStatus {
 		//		}		
 	}
 }
+
+//ArrayList<Place> inputPlaces = new ArrayList<>();
+//ArrayList<Place> outputPlaces = new ArrayList<>();
+//
+//for(PetrinetEdge edge :lms.net.getInEdges(transition)) {
+//	inputPlaces.add((Place) edge.getSource());
+//}
+////HashMap<Place, ArrayList<String>> prefixes = new HashMap<>();
+//
+//for(Place inputPlace : inputPlaces) {
+//	ArrayList<String> shortestPrefix = new ArrayList<>();
+//	Place effectivePlace = null;
+//	for(Place nonDetPlace : nonDeterministicPlaces) {
+//		ArrayList<String> currentPrefix = lms.getShortestPath(nonDetPlace, inputPlace);
+//		if(!currentPrefix.isEmpty() && (shortestPrefix.isEmpty() || (shortestPrefix.size()> currentPrefix.size()))) {
+//			shortestPrefix.clear();
+//			shortestPrefix.addAll(currentPrefix);
+//			effectivePlace = nonDetPlace;
+//		}
+//	}
+//	
+//	if(!shortestPrefix.isEmpty()) {
+//		traceModelAlphabet.addAll(shortestPrefix);
+//		traceModelAlphabet.add(newEventName);
+//		//update nd places 
+//		nonDeterministicPlaces.remove(effectivePlace);
+//		
+//		for(PetrinetEdge edge :lms.net.getOutEdges(transition)) {
+//			outputPlaces.add((Place) edge.getTarget());
+//		}
+//		
+//		deterministicPlaces.addAll(outputPlaces);
+//	}
+//}
+//
+//
+//OCC2 = new PrefixAlignmentBasedOCC(this.lms);
+//traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//traceStreamAlphabet = transformAlphabet(traceModelAlphabet);
+//batchCCPrefAlign(traceStreamAlphabet);
+//refreshUpdateTime();
+
+/////

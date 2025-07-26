@@ -56,6 +56,6 @@ public class OnlineConformanceScore {
 
 	@Override
 	public String toString() {
-		return "conformance = " + getConformance() + "; completeness = " + getCompleteness() + "; confidence = " + getConfidence();
+		return "conformance = " + getConformance() + "; completeness = " + getCompleteness() + "; confidence = " + getConfidence() + "; cost = " + getTraceCost();
 	}
 }
