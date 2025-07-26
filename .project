@@ -15,4 +15,21 @@
 		<nature>org.eclipse.jdt.core.javanature</nature>
 		<nature>org.apache.ivyde.eclipse.ivynature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>README.md</name>
+			<type>1</type>
+			<location>D:/Github backup before submitting thesis/MBprefiximputation-master/README.md</location>
+		</link>
+		<link>
+			<name>Sythetic Event Log.zip</name>
+			<type>1</type>
+			<location>D:/Github backup before submitting thesis/MBprefiximputation-master/Sythetic Event Log.zip</location>
+		</link>
+		<link>
+			<name>fdata-04-705243-g001.jpg</name>
+			<type>1</type>
+			<location>D:/Github backup before submitting thesis/MBprefiximputation-master/fdata-04-705243-g001.jpg</location>
+		</link>
+	</linkedResources>
 </projectDescription>
